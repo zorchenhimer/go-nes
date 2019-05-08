@@ -94,7 +94,7 @@ func (t *Tile) ASCII() string {
 	return fmt.Sprintf("%s", chars)
 }
 
-func (t *Tile) Asm() string {
+func (t *Tile) Asm(half bool) string {
 	//chars := [64]rune{}
 	charsA := ""
 	charsB := ""
@@ -124,5 +124,8 @@ func (t *Tile) Asm() string {
 	}
 
 	//return fmt.Sprintf("    .byte %%%s", chars)
+	if half {
+		return charsA
+	}
 	return charsA + "\n" + charsB
 }

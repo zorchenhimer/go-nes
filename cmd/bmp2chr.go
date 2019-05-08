@@ -216,7 +216,7 @@ func main() {
 			ascii := strings.Split(tile.ASCII(), "\n")
 			ascii_comment := strings.Join(ascii, "\n; ")
 			fmt.Fprintf(asmOut, "%s\n", ascii_comment)
-			fmt.Fprintf(asmOut, "%s\n", tile.Asm())
+			fmt.Fprintf(asmOut, "%s\n", tile.Asm(asmOutputHalf))
 		}
 	}
 
