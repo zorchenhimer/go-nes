@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -20,14 +19,12 @@ func main() {
 	var debug bool
 	var asmOutput bool
 	var asmOutputHalf bool
-	var textConv bool
 
 	flag.StringVar(&outputFilename, "o", "", "Output filename")
 	flag.BoolVar(&doubleHigh, "16", false, "8x16 tiles")
 	flag.BoolVar(&debug, "debug", false, "Debug printing")
 	flag.BoolVar(&asmOutput, "asm", false, "Output data in ASM")
 	flag.BoolVar(&asmOutputHalf, "asmhalf", false, "Output data in ASM (first bit plane only)")
-	flag.BoolVar(&textConv, "text", false, "Input text and output CHR given the supplied BMP font")
 	flag.Parse()
 
 	fileList := []string{}
@@ -123,12 +120,6 @@ func main() {
 	}
 
 	patternTable := []image.Tile{}
-	//blankBmp, err := bmp2chr.OpenBitmap("blank.bmp")
-	//if err != nil {
-	//	fmt.Println(err)
-	//	os.Exit(1)
-	//}
-	//blankTile := blankBmp.Tiles[0]
 	blankTile := image.NewTile(0)
 
 	total_width := 0
@@ -167,15 +158,12 @@ func main() {
 			patternTable[index] = tile
 
 			index++
-			//if index >= 16*16 {
-			//	fmt.Println("Too many tiles! Truncating")
-			//	break
-			//}
 		}
 	}
 
-	// Only remove duplicates if in 8x8 mode
-	if !doubleHigh && !textConv {
+	// Remove duplicates
+	// But only in 8x8 mode
+	if !doubleHigh {
 		tileIds, err := os.Create(outputFilename + ".ids.asm")
 		if err != nil {
 			fmt.Println(err)
@@ -212,29 +200,8 @@ func main() {
 		patternTable = noDupes
 	}
 
-	// Text -> CHR
-	if textConv {
-		//var text string
-		fmt.Print("Enter text: ")
-
-		reader := bufio.NewReader(os.Stdin)
-		text, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
-		if len(text) > 256 {
-			fmt.Println("Text too long")
-			os.Exit(1)
-		}
-
-		outChr := []image.Tile{}
-		for _, char := range text {
-			outChr = append(outChr, patternTable[int(char)])
-		}
-
-		patternTable = outChr
+	if len(patternTable) >= 16*16 {
+		fmt.Println("More than 256 tiles!")
 	}
 
 	if asmOutputHalf || asmOutput {
