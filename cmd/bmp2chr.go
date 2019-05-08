@@ -131,7 +131,7 @@ func main() {
 		total_height += rect.Dy()
 	}
 
-	for i := 0; i < (total_width*total_width)/64; i++ {
+	for i := 0; i < (total_width*total_height)/64; i++ {
 		patternTable = append(patternTable, *blankTile)
 	}
 
@@ -213,7 +213,10 @@ func main() {
 		defer asmOut.Close()
 
 		for _, tile := range patternTable {
-			fmt.Fprintf(asmOut, "%s\n", tile.Asm(asmOutputHalf))
+			ascii := strings.Split(tile.ASCII(), "\n")
+			ascii_comment := strings.Join(ascii, "\n; ")
+			fmt.Fprintf(asmOut, "%s\n", ascii_comment)
+			fmt.Fprintf(asmOut, "%s\n", tile.Asm())
 		}
 	}
 

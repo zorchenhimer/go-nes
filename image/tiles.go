@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"strings"
+	//"strings"
 )
 
 // This is that ugly palette from YYCHR
@@ -94,58 +94,35 @@ func (t *Tile) ASCII() string {
 	return fmt.Sprintf("%s", chars)
 }
 
-func (t *Tile) Asm(half bool) string {
-	p1 := [64]rune{}
-	p2 := [64]rune{}
-
-	for i, pix := range t.Pix {
-		switch pix {
+func (t *Tile) Asm() string {
+	//chars := [64]rune{}
+	charsA := ""
+	charsB := ""
+	for i, t := range t.Pix {
+		ca := ""
+		cb := ""
+		switch t {
 		case 0:
-			p1[i] = '0'
-			p2[i] = '0'
+			ca = "0"
+			cb = "0"
 		case 1:
-			p1[i] = '1'
-			p2[i] = '0'
+			ca = "1"
+			cb = "0"
 		case 2:
-			p1[i] = '0'
-			p2[i] = '1'
+			ca = "0"
+			cb = "1"
 		case 3:
-			p1[i] = '1'
-			p2[i] = '1'
+			ca = "1"
+			cb = "1"
 		}
-	}
-
-	plane1 := strings.Builder{}
-	plane2 := strings.Builder{}
-
-	for x := 0; x < 8; x++ {
-		plane1.WriteString("    .byte %")
-		plane2.WriteString("    .byte %")
-
-		plane1Comment := strings.Builder{}
-		plane2Comment := strings.Builder{}
-		for y := 0; y < 8; y++ {
-			plane1.WriteRune(p1[x*y])
-			if p1[x*y] == '1' {
-				plane1Comment.WriteRune('X')
-			} else {
-				plane1Comment.WriteRune(' ')
-			}
-
-			plane2.WriteRune(p1[x*y])
-			if p2[x*y] == '1' {
-				plane2Comment.WriteRune('X')
-			} else {
-				plane2Comment.WriteRune(' ')
-			}
+		if i%8 == 0 {
+			charsA = fmt.Sprintf("%s\n    .byte %%", charsA)
+			charsB = fmt.Sprintf("%s\n    .byte %%", charsB)
 		}
-		plane1.WriteString("; " + plane1Comment.String() + "\n")
-		plane2.WriteString("; " + plane2Comment.String() + "\n")
+		charsA = fmt.Sprintf("%s%s", charsA, ca)
+		charsB = fmt.Sprintf("%s%s", charsB, cb)
 	}
 
-	ret := plane1.String()
-	if !half {
-		ret = ret + "\n\n" + plane2.String()
-	}
-	return ret
+	//return fmt.Sprintf("    .byte %%%s", chars)
+	return charsA + "\n" + charsB
 }
