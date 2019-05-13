@@ -7,15 +7,7 @@ import (
 	"io/ioutil"
 )
 
-type Bitmap struct {
-	fileHeader  *FileHeader
-	imageHeader *ImageHeader
-	RawData     []byte
-	Tiles       []Tile
-	TilesPerRow int
-}
-
-func OpenBitmap(filename string) (*Bitmap, error) {
+func LoadBitmap(filename string) (*PatternTable, error) {
 
 	// Read input file
 	rawBmp, err := ioutil.ReadFile(filename)
@@ -64,8 +56,7 @@ func OpenBitmap(filename string) (*Bitmap, error) {
 
 	// Cut out the 8x8 tiles
 	tileID := 0
-	tiles := []Tile{}
-	//fmt.Printf("uprightRows length: %d (%d)\n", len(uprightRows), len(uprightRows)/64)
+	table := NewPatternTable()
 
 	tilesPerRow := rect.Max.X / 8
 
@@ -75,8 +66,8 @@ func OpenBitmap(filename string) (*Bitmap, error) {
 		// tile row * tile row length in pixels + offset in tile
 		startOffset := (tileID/tilesPerRow)*(64*tilesPerRow) + (tileID%tilesPerRow)*8
 
-		var tileBytes *Tile
-		tileBytes = NewTile(tileID)
+		var nt *Tile
+		nt = NewTile(tileID)
 		for y := 0; y < 8; y++ {
 			tileY := y
 
@@ -87,26 +78,16 @@ func OpenBitmap(filename string) (*Bitmap, error) {
 
 			// Get the pixels for the row.
 			for x := 0; x < 8; x++ {
-				tileBytes.Pix[x+(8*tileY)] = uprightRows[startOffset+x+rect.Max.X*y]
+				nt.Pix[x+(8*tileY)] = uprightRows[startOffset+x+rect.Max.X*y]
 			}
 		}
 
-		tiles = append(tiles, *tileBytes)
+		//tiles = append(tiles, nt)
+		table.AddTile(nt)
 		tileID++
 	}
 
-	return &Bitmap{
-		fileHeader:  fileHeader,
-		imageHeader: imageHeader,
-		// Isolate pixel data
-		RawData:     uprightRows,
-		Tiles:       tiles,
-		TilesPerRow: tilesPerRow,
-	}, nil
-}
-
-func (b Bitmap) Rect() image.Rectangle {
-	return image.Rect(0, 0, b.imageHeader.Width, b.imageHeader.Height)
+	return table, nil
 }
 
 type FileHeader struct {

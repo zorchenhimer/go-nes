@@ -15,19 +15,6 @@ var DefaultPalette color.Palette = color.Palette{
 	color.RGBA{R: 0xC6, G: 0xE7, B: 0x9C, A: 0xFF},
 }
 
-// Assembled meta sprites and tiles.  These will be unwrapped to the specified
-// layout (eg, 8*16 vs 8x8)
-type MetaTile struct {
-	Tiles []*Tile
-
-	// Width and Hight in tiles, not pixels
-	Width  int
-	Height int
-
-	// Layout of tiles in the destination CHR
-	Layout TileLayout
-}
-
 // Data is a list of palette indexes.  One ID per pixel.  A single tile is
 // always 8x8 pixels.  Larger meta tiles (eg, 8*16) will be made up of multiple
 // tiles of 64 total pixels.
@@ -49,7 +36,7 @@ func NewTile(id int) *Tile {
 	}
 }
 
-func (thisTile *Tile) IsIdentical(otherTile Tile) bool {
+func (thisTile *Tile) IsIdentical(otherTile *Tile) bool {
 	for i := 0; i < 64; i++ {
 		if thisTile.Pix[i] != otherTile.Pix[i] {
 			return false
@@ -71,7 +58,6 @@ const (
 )
 
 func (t *Tile) ASCII() string {
-	//chars := [64]rune{}
 	chars := ""
 	for i, t := range t.Pix {
 		c := ""
@@ -94,38 +80,70 @@ func (t *Tile) ASCII() string {
 	return fmt.Sprintf("%s", chars)
 }
 
-func (t *Tile) Asm(half bool) string {
-	//chars := [64]rune{}
-	charsA := ""
-	charsB := ""
-	for i, t := range t.Pix {
-		ca := ""
-		cb := ""
-		switch t {
-		case 0:
-			ca = "0"
-			cb = "0"
-		case 1:
-			ca = "1"
-			cb = "0"
-		case 2:
-			ca = "0"
-			cb = "1"
-		case 3:
-			ca = "1"
-			cb = "1"
+func (t *Tile) getChrBin() ([]byte, []byte) {
+	plane1 := []byte{}
+	plane2 := []byte{}
+	for row := 0; row < 8; row++ {
+		var p1 uint8 = 0
+		var p2 uint8 = 0
+		for col := 0; col < 8; col++ {
+			color := t.Pix[col + (row * 8)]
+			switch color {
+			case 1:
+				p1 = (p1 << 1) | 1
+				p2 = (p2 << 1)
+
+			case 2:
+				p1 = (p1 << 1)
+				p2 = (p2 << 1) | 1
+
+			case 3:
+				p1 = (p1 << 1) | 1
+				p2 = (p2 << 1) | 1
+
+			default:
+				p1 = (p1 << 1)
+				p2 = (p2 << 1)
+			}
 		}
-		if i%8 == 0 {
-			charsA = fmt.Sprintf("%s\n    .byte %%", charsA)
-			charsB = fmt.Sprintf("%s\n    .byte %%", charsB)
-		}
-		charsA = fmt.Sprintf("%s%s", charsA, ca)
-		charsB = fmt.Sprintf("%s%s", charsB, cb)
+		plane1 = append(plane1, p1)
+		plane2 = append(plane2, p2)
+	}
+	return plane1, plane2
+}
+
+// Asm takes two parameters:
+// Setting `half` to true will only return the first bitplane of the tile.
+// Setting `binary` to true will use the binary notation, otherwise it will
+// use the hexidecimal notation.
+func (t *Tile) Asm(half, binary bool) string {
+	plane1, plane2 := getChrBin
+
+	p1 := []string{}
+	p2 := []string{}
+
+	formatString := "$%02X"
+	if binary {
+		formatString = "%%%08b"
 	}
 
-	//return fmt.Sprintf("    .byte %%%s", chars)
-	if half {
-		return charsA
+	for _, b := range plane1 {
+		p1 = append(p1, fmt.Sprintf(formatString, b))
 	}
-	return charsA + "\n" + charsB
+
+	if !half {
+		for _, b := range plane2 {
+			p2 = append(p2, fmt.Sprintf(formatString, b))
+		}
+	}
+
+	if half {
+		return ".byte " + strings.Join(p1, ", ")
+	}
+	return ".byte " strings.Join(p1, ", ") + "\n.byte" + strings.Join(p2, ", ")
+}
+
+func (t *Tile) Chr() []byte {
+	plane1, plane2 := t.getChrBin()
+	return append(plane1, plane2...)
 }
