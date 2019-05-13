@@ -32,6 +32,31 @@ type Header struct {
 	Mapper           uint
 }
 
+func (h *Header) Debug() string {
+	return fmt.Sprintf(`Header:
+	PRGSize: %d
+	CHRSize: %d
+	MiscSize: %d
+	TrainerPresent: %t
+	PersistentMemory: %t
+	Mirroring: %s
+	VSUnisystem: %t
+	PlayChoice_10: %t
+	Nes2: %t
+	Mapper: %d`,
+		h.PRGSize / 1024,
+		h.CHRSize / 1024,
+		h.MiscSize,
+		h.TrainerPresent,
+		h.PersistentMemory,
+		h.Mirroring,
+		h.VSUnisystem,
+		h.PlayChoice_10,
+		h.Nes2,
+		h.Mapper,
+	)
+}
+
 type MirrorType uint
 
 const (
@@ -39,6 +64,19 @@ const (
 	M_VERTICAL   MirrorType = 1
 	M_IGNORE     MirrorType = 2 // four-screen VRAM
 )
+
+func (mt MirrorType) String() string {
+	switch mt {
+	case M_HORIZONTAL:
+		return "Horizontal"
+	case M_VERTICAL:
+		return "Vertical"
+	case M_IGNORE:
+		return "Ignore"
+	default:
+		return fmt.Sprintf("Unknown (%d)", mt)
+	}
+}
 
 //type PRGUsage byte
 //type CHRUsage byte
@@ -68,6 +106,12 @@ type NesRom struct {
 	PrgCrc  uint32
 	ChrCrc  uint32
 	MiscCrc uint32
+}
+
+func (r *NesRom) Debug() string {
+	return r.Header.Debug() +
+	fmt.Sprintf("\nPrgCrc: %08X\nChrCrc: %08X\nMiscCrc: %08X", r.PrgCrc, r.ChrCrc, r.MiscCrc)
+
 }
 
 // ReadRom() opens the given file and attempts to load it as an iNES ROM.
