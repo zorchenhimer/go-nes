@@ -3,17 +3,9 @@ package image
 import (
 	"fmt"
 	"image"
-	"image/color"
-	//"strings"
+	//"image/color"
+	"strings"
 )
-
-// This is that ugly palette from YYCHR
-var DefaultPalette color.Palette = color.Palette{
-	color.RGBA{R: 0x00, G: 0x39, B: 0x73, A: 0xFF},
-	color.RGBA{R: 0x84, G: 0x5E, B: 0x21, A: 0xFF},
-	color.RGBA{R: 0xAD, G: 0xB5, B: 0x31, A: 0xFF},
-	color.RGBA{R: 0xC6, G: 0xE7, B: 0x9C, A: 0xFF},
-}
 
 // Data is a list of palette indexes.  One ID per pixel.  A single tile is
 // always 8x8 pixels.  Larger meta tiles (eg, 8*16) will be made up of multiple
@@ -117,7 +109,7 @@ func (t *Tile) getChrBin() ([]byte, []byte) {
 // Setting `binary` to true will use the binary notation, otherwise it will
 // use the hexidecimal notation.
 func (t *Tile) Asm(half, binary bool) string {
-	plane1, plane2 := getChrBin
+	plane1, plane2 := t.getChrBin()
 
 	p1 := []string{}
 	p2 := []string{}
@@ -140,7 +132,7 @@ func (t *Tile) Asm(half, binary bool) string {
 	if half {
 		return ".byte " + strings.Join(p1, ", ")
 	}
-	return ".byte " strings.Join(p1, ", ") + "\n.byte" + strings.Join(p2, ", ")
+	return ".byte " + strings.Join(p1, ", ") + "\n.byte" + strings.Join(p2, ", ")
 }
 
 func (t *Tile) Chr() []byte {

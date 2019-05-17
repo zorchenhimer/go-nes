@@ -18,7 +18,7 @@ const (
 	// TODO: more?
 )
 
-// A PatternTable is the data tha will be written as the CHR.  It can only be in
+// A PatternTable is the data that will be written as the CHR.  It can only be in
 // 1k, 2k, 4k, or 8k sizes; or 64, 128, 256, or 512 tiles; or 128x32, 128x64,
 // 128x128, or 128x256 pixels; or 4, 8, 16, or 32 rows of tiles.
 type PatternTable struct {
@@ -116,23 +116,9 @@ func (pt *PatternTable) WriteFile(filename string) error {
 	return ioutil.WriteFile(filename, chr, 0777)
 }
 
-//func (pt *PatternTable) Add(img *image.Paletted, arr Arrangement) error {
-//	if img.Bounds().Max.X % 8 != 0 || img.Bounds().Max.Y % 8 != 0 {
-//		return fmt.Errorf("Dimensions must be multiples of 8")
-//	}
-//
-//	mt, err := NewMetaTileFromPaletted(img)
-//	if err != nil {
-//		return err
-//	}
-//	pt.Patterns = append(pt.Patterns, mt)
-//	return nil
-//}
-
 // Implement the image.Image interface
 func (pt *PatternTable) ColorModel() color.Model {
-	// TODO
-	return nil
+	return NESModel
 }
 
 func (pt *PatternTable) Bounds() image.Rectangle {
@@ -141,19 +127,44 @@ func (pt *PatternTable) Bounds() image.Rectangle {
 	if len(pt.Patterns) < 16 {
 		width = len(pt.Patterns) * 8
 	}
-	return image.Rectangle{}
+	height := int(math.Ceil(float64(width) / 16.0)) * 8
+	return image.Rect(0, 0, width, height)
 }
 
+// TODO: Verify this actually works
 func (pt *PatternTable) At(x, y int) color.Color {
-	// TODO
-	return nil
+	tile := pt.getTileAtCoord(x, y)
+	// Get the pixel in the tile
+	x = x % 8
+	y = y % 8
+	return tile.At(x, y)
 }
 
 // Implement image.draw.Drawer and image.draw.Image
-func (pt *PatternTable) Draw(dst image.Image, r image.Rectangle, src image.Image, sp image.Point) {
-	// TODO
+//func (pt *PatternTable) Draw(dst image.Image, r image.Rectangle, src image.Image, sp image.Point) {
+//	// This would require splitting the source image into tiles, then drawing
+//	// on each affected tile.
+//	panic("PatternTable.Draw() is not implemented")
+//}
+
+func (pt *PatternTable) getTileAtCoord(x, y int) *Tile {
+	// This is integer division.  The results are
+	// automatically floor()'d.
+	row := y / 8
+	col := x / 8
+
+	// Tile index
+	idx := (row * 8) + col
+
+	// Get the tile
+	return pt.Patterns[idx]
 }
 
+// TODO: Verify this works
 func (pt *PatternTable) Set(x, y int, c color.Color) {
-	// TODO
+	tile := pt.getTileAtCoord(x, y)
+
+	x = x % 8
+	y = y % 8
+	tile.Set(x, y, c)
 }
