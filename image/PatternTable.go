@@ -86,6 +86,16 @@ OUTER:
 	return len(pt.ReducedIds), len(pt.Patterns)
 }
 
+func (pt *PatternTable) Chr() []byte {
+	chr := []byte{}
+
+	for _, t := range pt.Patterns {
+		chr = append(chr, t.Chr()...)
+	}
+
+	return chr
+}
+
 func (pt *PatternTable) WriteFile(filename string) error {
 	chr := []byte{}
 
