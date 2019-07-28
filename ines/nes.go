@@ -6,6 +6,12 @@ import (
 	"io/ioutil"
 )
 
+type Crc32 uint32
+
+func (crc Crc32) HexString() string {
+	return fmt.Sprintf("%08X", crc)
+}
+
 // NesRom holds the complete decoded ROM image.
 type NesRom struct {
 	Header *Header
@@ -14,15 +20,15 @@ type NesRom struct {
 	ChrRom  []byte
 	MiscRom []byte // data after the CHR rom
 
-	PrgCrc  uint32
-	ChrCrc  uint32
-	MiscCrc uint32
-	RomCrc	uint32
+	PrgCrc  Crc32
+	ChrCrc  Crc32
+	MiscCrc Crc32
+	RomCrc	Crc32
 }
 
 func (r *NesRom) Debug() string {
 	return r.Header.Debug() +
-	fmt.Sprintf("\nRomCrc: %08X\nPrgCrc: %08X\nChrCrc: %08X\nMiscCrc: %08X", r.RomCrc, r.PrgCrc, r.ChrCrc, r.MiscCrc)
+	fmt.Sprintf("\nRomCrc: %s\nPrgCrc: %s\nChrCrc: %s\nMiscCrc: %s", r.RomCrc.HexString(), r.PrgCrc.HexString(), r.ChrCrc.HexString(), r.MiscCrc.HexString())
 }
 
 func (r *NesRom) WriteFile(filename string) error {
@@ -57,7 +63,7 @@ func ReadRom(filename string) (*NesRom, error) {
 
 	rom.Header = h
 
-	rom.RomCrc = crc32.ChecksumIEEE(rawrom[16:len(rawrom)])
+	rom.RomCrc = Crc32(crc32.ChecksumIEEE(rawrom[16:len(rawrom)]))
 
 	prgEnd := rom.Header.PrgStart() + rom.Header.PrgSize
 	chrEnd := rom.Header.ChrStart() + rom.Header.ChrSize
@@ -71,10 +77,9 @@ func ReadRom(filename string) (*NesRom, error) {
 		rom.ChrRom = rawrom[rom.Header.ChrStart():chrEnd]
 	}
 
-	rom.PrgCrc = crc32.ChecksumIEEE(rom.PrgRom)
+	rom.PrgCrc = Crc32(crc32.ChecksumIEEE(rom.PrgRom))
 	if rom.Header.HasChr() {
-		fmt.Println("HasChr(), grabbing CRC")
-		rom.ChrCrc = crc32.ChecksumIEEE(rom.ChrRom)
+		rom.ChrCrc = Crc32(crc32.ChecksumIEEE(rom.ChrRom))
 	}
 
 	return rom, nil
