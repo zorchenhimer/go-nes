@@ -66,12 +66,16 @@ func (pt *PatternTable) AddTile(tile *Tile) {
 }
 
 // Returns before/after count
-func (pt *PatternTable) RemoveDuplicates() (int, int) {
+func (pt *PatternTable) RemoveDuplicates(removeEmpty bool) (int, int) {
 	tiles := []*Tile{}
 	pt.ReducedIds = []int{}
 
 OUTER:
 	for idx, tile := range pt.Patterns {
+		if tile.IsEmpty() && removeEmpty {
+			continue
+		}
+
 		for id, t := range tiles {
 			if t.IsIdentical(tile) {
 				pt.ReducedIds = append(pt.ReducedIds, id)
@@ -115,7 +119,7 @@ func (pt *PatternTable) WriteFile(filename string) error {
 		line := []string{}
 		for i := 0; i < len(pt.ReducedIds); i++ {
 			line = append(line, fmt.Sprintf("$%02X", pt.ReducedIds[i]))
-			if i % 32 == 0 {
+			if i % 32 == 0 && i != 0 {
 				fmt.Fprintf(file, ".byte %s\n", strings.Join(line, ", "))
 				line = []string{}
 			}
