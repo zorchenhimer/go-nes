@@ -14,6 +14,7 @@ import (
 type Tile struct {
 	image.Paletted
 	OrigId int
+	charWidth int
 }
 
 func NewTile(id int) *Tile {
@@ -25,6 +26,7 @@ func NewTile(id int) *Tile {
 			Palette: DefaultPalette,
 		},
 		OrigId: id,
+		charWidth: -1,
 	}
 }
 
@@ -70,6 +72,39 @@ func (t *Tile) ASCII() string {
 	}
 
 	return fmt.Sprintf("%s", chars)
+}
+
+func (t *Tile) IsEmpty() bool {
+	return !t.IsNotEmpty()
+}
+
+func (t *Tile) IsNotEmpty() bool {
+	for _, p := range t.Pix {
+		if p > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (t *Tile) CharacterWidth() int {
+	if t.charWidth > -1 {
+		return t.charWidth
+	}
+
+	for col := 7; col > -1; col-- {
+		for row := 0; row < 8; row++ {
+			pix := t.Paletted.ColorIndexAt(col, row)
+			//fmt.Printf("%s\n(%d,%d)\n%d\n\n", t.ASCII(), row, col, pix);
+			if pix > 0 {
+				t.charWidth = col + 1
+				return t.charWidth
+			}
+		}
+	}
+
+	t.charWidth = 0
+	return 0
 }
 
 func (t *Tile) getChrBin() ([]byte, []byte) {
@@ -130,7 +165,7 @@ func (t *Tile) Asm(half, binary bool) string {
 	}
 
 	if half {
-		return ".byte " + strings.Join(p1, ", ")
+		return ".byte " + strings.Join(p1, "\n.byte ") + "\n"
 	}
 	return ".byte " + strings.Join(p1, ", ") + "\n.byte" + strings.Join(p2, ", ")
 }
