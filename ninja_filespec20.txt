@@ -1,0 +1,79 @@
+------------------------------------------------------------------------------
+ NINJA File Format Specifications                                 version 2.0
+ Written by Derrick Sobodash                                   Copyright 2006
+ Released on June 29, 2006                   http://ninja.cinnamonpirate.com/
+------------------------------------------------------------------------------
+
+ NINJA 2.0 follows a much simpler file format than its predecessor. Each
+ patch consists of 3 regions: HEADER, INFO and DATA. HEADER and INFO make
+ up the first sector of the patch (1024 bytes).
+
+ @HEADER@
+ {
+   NINJA_MAGIC - string "NINJA" (5 bytes)
+   NINJA_VER   - char "2"       (1 byte )
+ }
+
+ @INFO@
+ {
+   PATCH_ENC   - int ENC      (   1 byte ) // Info text encoding
+                                           // 0: System codepage / 1: UTF-8
+   PATCH_AUTH  - string AUTH  (  84 bytes) // Author
+   PATCH_VER   - string VER   (  11 bytes) // Version
+   PATCH_TITLE - string TITLE ( 256 bytes) // Title
+   PATCH_GENRE - string GENRE (  48 bytes) // Genre
+   PATCH_LANG  - string LANG  (  48 bytes) // Language
+   PATCH_DATE  - string DATE  (   8 bytes) // Date as YYYYMMDD
+   PATCH_WEB   - string WEB   ( 512 bytes) // Website
+   PATCH_DESC  - string DESC  (1074 bytes) // Info (New line marked by "\n")
+ }
+
+ @DATA@
+ {
+   COMMAND     - int COMMAND  (  1 byte )
+
+   if COMMAND == 0x1     // Open File|Close Current
+   {
+     FILE_N_MUL    - int N_MUL     (        1 byte ) // 0 Signals single-file
+     FILE_N_LEN    - int N_LEN     (    N_MUL bytes) // Length of file name
+     FILE_NAME     - string NAME   (    N_LEN bytes) // File name
+     FILE_TYPE     - int TYPE      (        1 byte ) // File format
+     FILE_SSIZE_MUL- int SSIZE_MUL (        1 byte )
+     FILE_SSIZE    - int SIZE      (SSIZE_MUL bytes) // Source file size
+     FILE_MSIZE_MUL- int MSIZE_MUL (        1 byte )
+     FILE_MSIZE    - int MIZE      (MSIZE_MUL bytes) // Modified file size
+     FILE_SMD5     - string SMD5   (       16 bytes) // Source MD5sum
+     FILE_MMD5     - string MMD5   (       16 bytes) // Modified MD5sum
+
+     if SSIZE > MSIZE
+     {
+       FILE_MAGIC   - char "M"        (       1 byte ) // Source overflow
+       FILE_OVER_MUL- int OVER_MUL    (       1 byte )
+       FILE_OVER    - int OVER        (OVER_MUL bytes) // Overflow length
+       FILE_OVERFLOW- string OVERFLOW (    OVER bytes) // Lost from modified
+     }
+
+     else if MSIZE > SSIZE
+     {
+       FILE_MAGIC   - char "A"        (       1 byte ) // Modified overflow
+       FILE_OVER_MUL- int OVER_MUL    (       1 byte )
+       FILE_OVER    - int OVER        (OVER_MUL bytes) // Overflow length
+       FILE_OVERFLOW- string OVERFLOW (    OVER bytes) // Gained in modified
+     }
+   }
+
+   else if COMMAND == 02 // XOR Patch
+   {
+     PATCH_OFF_MUL- int OFF_MUL (      1 byte )
+     PATCH_OFF    - int OFF     (OFF_MUL bytes) // Patch offset
+     PATCH_LEN_MUL- int LEN_MUL (      1 byte )
+     PATCH_LEN    - int LEN     (LEN_MUL bytes) // Patch length
+     PATCH_XOR    - string XOR  (    LEN bytes) // XOR string
+   }
+
+   else if COMMAND == 0x0
+     // Terminate patch
+ }
+
+------------------------------------------------------------------------------
+
