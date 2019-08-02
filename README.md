@@ -26,23 +26,23 @@ Universal utility to work with CHR files and related data.
 Command line options should probably be ordered.  Something like input file
 followed by options.
 
-    $ bmp2chr input_a.bmp input_b.bmp --b-option
-    $ bmp2chr input_a.bmp --a-option input_b.bmp
-    $ bmp2chr input_a.bmp --a-option input_b.bmp --b-option
+    $ chrutil input_a.bmp input_b.bmp --b-option
+    $ chrutil input_a.bmp --a-option input_b.bmp
+    $ chrutil input_a.bmp --a-option input_b.bmp --b-option
 
-    $ bmp2chr \
+    $ chrutil \
         --global-option \
         input_a.bmp \
         input_b.bmp --b-option
 
-    $ bmp2chr \
+    $ chrutil \
         --global-option \
         input_a.bmp --global-override-for-a \
         input_b.bmp --b-option
 
 For this command, `main.chr` will not contain the data from `input_b.bmp`.
 
-    $ bmp2chr \
+    $ chrutil \
         --output main.chr \
         input_a.bmp \
         input_b.bmp --output only_b.chr \
@@ -60,7 +60,7 @@ value.
 Multiple input files with the same output file will be combined into that
 output file.
 
-    $ bmp2chr \
+    $ chrutil \
         input_a.bmp --output ab.chr \
         input_b.bmp --output ab.chr \
         input_c.bmp --output cd.chr \
@@ -71,26 +71,26 @@ output file.
 Either a range or a list of tile IDs.  Accept either decimal or hex ($##)
 notation.
 
-    $ bmp2chr --tile-ids 2-14
-    $ bmp2chr --tile-ids 2,4,8,10
+    $ chrutil --tile-ids 2-14
+    $ chrutil --tile-ids 2,4,8,10
 
-    $ bmp2chr --tile-ids $02-$0D
-    $ bmp2chr --tile-ids $02,$04,$08,$0A
+    $ chrutil --tile-ids $02-$0D
+    $ chrutil --tile-ids $02,$04,$08,$0A
 
 Option to exclude specific tiles or a range?
 
-    $ bmp2chr --tile-ids 2-14 --exclude-ids 4-6
-    $ bmp2chr --tile-ids 2-14 --exclude-ids 4,6,10
+    $ chrutil --tile-ids 2-14 --exclude-ids 4-6
+    $ chrutil --tile-ids 2-14 --exclude-ids 4,6,10
 
-    $ bmp2chr --tile-ids $02-$0D --exclude-ids $04-$06
-    $ bmp2chr --tile-ids $02-$0D --exclude-ids $04,$06,$0A
+    $ chrutil --tile-ids $02-$0D --exclude-ids $04-$06
+    $ chrutil --tile-ids $02-$0D --exclude-ids $04,$06,$0A
 
 ### Allowing CHR as input
 
 This will append `font.chr` to the end of `main.chr` after `input_a.bmp` has
 been converted and written.
 
-    $ bmp2chr \
+    $ chrutil \
         --output main.chr \
         input_a.bmp \
         font.chr
@@ -98,7 +98,7 @@ been converted and written.
 This will append the converted `input_a.bmp` CHR data to the end of `main.chr`
 after `font.chr`.
 
-    $ bmp2chr \
+    $ chrutil \
         --output main.chr \
         font.chr \
         input_a.bmp
