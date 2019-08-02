@@ -160,3 +160,19 @@ Convert to NES2.0 ROM format.  If ROM is already a NES2.0 ROM, verify header
 matches data (sizes, etc).
 
     $ romutil nes2 input.rom
+
+## Custom rolled flag parsing
+
+Three main sections (or "targets") of data: default, global, and per-input.
+
+Default is defined at compile-time, while the global and per-input are defined
+at runtime.
+
+All command line options have a target, with the default (first) target
+"global".  Retrieving a value for a target will first look in the current
+target scope, fall back to the global target if nothing was found, then finally
+fall back to the default target.
+
+Each target should have a reference to the higher target scope.  The default
+target will not have a reference anywhere as all options will be expected to
+have been defined in the default target scope.
