@@ -19,7 +19,21 @@ Universal utility to work with CHR files and related data.
 - Convert bitmap fonts to CHR
 - Automatic tile de-duplication
 - Destination tile ID override
-- Output a re-mapping file that can be read by `bmp2chr` to translate tile IDs.
+- Output a re-mapping file that can be read by `chrutil` to translate tile IDs.
+
+#### Font stuff:
+
+- Bitmap font to CHR data.
+- Remap ascii values to tile-reduced IDs (ie, write `.chramap` directives in assembly).
+- Default to monocolor (single CHR plane), but give option to override.
+
+    $ chrutil font.bmp --font --output font.asm
+    $ chrutil font.bmp --font --output font.asm --text "some text to reduce charset to"
+    $ chrutil font.bmp --font --output font.asm --text "some text to reduce charset to" --kern
+
+Given input text:
+- Take input string, render it with variable width bitmap fonts (pre-calculated text)
+- Take input string, only convert letters conatined in string (take file as input for text?)
 
 ### Multiple input files
 
