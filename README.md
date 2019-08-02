@@ -19,7 +19,6 @@ Universal utility to work with CHR files and related data.
 - Convert bitmap fonts to CHR
 - Automatic tile de-duplication
 - Destination tile ID override
-- Output a re-mapping file that can be read by `chrutil` to translate tile IDs.
 
 #### Font stuff:
 
