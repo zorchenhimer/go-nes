@@ -12,9 +12,10 @@ import (
 )
 
 type Arrangement uint
+
 const (
-	ARR_SINGLE Arrangement = iota
-	ARR_DBLHIGH	// 8x16 sprite mode
+	ARR_SINGLE  Arrangement = iota
+	ARR_DBLHIGH             // 8x16 sprite mode
 	// TODO: more?
 )
 
@@ -22,9 +23,9 @@ const (
 // 1k, 2k, 4k, or 8k sizes; or 64, 128, 256, or 512 tiles; or 128x32, 128x64,
 // 128x128, or 128x256 pixels; or 4, 8, 16, or 32 rows of tiles.
 type PatternTable struct {
-	Patterns	[]*Tile
-	Layout		Arrangement
-	ReducedIds	[]int
+	Patterns   []*Tile
+	Layout     Arrangement
+	ReducedIds []int
 }
 
 //type TableSize int
@@ -50,7 +51,7 @@ type PatternTable struct {
 
 func NewPatternTable() *PatternTable {
 	return &PatternTable{
-		Patterns:	[]*Tile{},
+		Patterns: []*Tile{},
 	}
 }
 
@@ -109,7 +110,7 @@ func (pt *PatternTable) WriteFile(filename string) error {
 
 	// Only write tile IDs if duplicates have been removed
 	if pt.ReducedIds != nil {
-		name := filename[:len(filename) - len(filepath.Ext(filename))] + ".ids.asm"
+		name := filename[:len(filename)-len(filepath.Ext(filename))] + ".ids.asm"
 		file, err := os.Create(name)
 		if err != nil {
 			return err
@@ -119,7 +120,7 @@ func (pt *PatternTable) WriteFile(filename string) error {
 		line := []string{}
 		for i := 0; i < len(pt.ReducedIds); i++ {
 			line = append(line, fmt.Sprintf("$%02X", pt.ReducedIds[i]))
-			if i % 32 == 0 && i != 0 {
+			if i%32 == 0 && i != 0 {
 				fmt.Fprintf(file, ".byte %s\n", strings.Join(line, ", "))
 				line = []string{}
 			}
@@ -141,7 +142,7 @@ func (pt *PatternTable) Bounds() image.Rectangle {
 	if len(pt.Patterns) < 16 {
 		width = len(pt.Patterns) * 8
 	}
-	height := int(math.Ceil(float64(width) / 16.0)) * 8
+	height := int(math.Ceil(float64(width)/16.0)) * 8
 	return image.Rect(0, 0, width, height)
 }
 

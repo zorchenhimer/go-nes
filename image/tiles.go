@@ -13,7 +13,7 @@ import (
 //type Tile [64]byte
 type Tile struct {
 	image.Paletted
-	OrigId int
+	OrigId    int
 	charWidth int
 }
 
@@ -25,7 +25,7 @@ func NewTile(id int) *Tile {
 			Rect:    image.Rect(0, 0, 8, 8),
 			Palette: DefaultPalette,
 		},
-		OrigId: id,
+		OrigId:    id,
 		charWidth: -1,
 	}
 }
@@ -114,7 +114,7 @@ func (t *Tile) getChrBin() ([]byte, []byte) {
 		var p1 uint8 = 0
 		var p2 uint8 = 0
 		for col := 0; col < 8; col++ {
-			color := t.Pix[col + (row * 8)]
+			color := t.Pix[col+(row*8)]
 			switch color {
 			case 1:
 				p1 = (p1 << 1) | 1

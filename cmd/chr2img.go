@@ -27,7 +27,7 @@ func main() {
 	}
 
 	outfile := filepath.Base(os.Args[1])
-	outfile = outfile[:len(outfile) - len(filepath.Ext(outfile))] + ".chr"
+	outfile = outfile[:len(outfile)-len(filepath.Ext(outfile))] + ".chr"
 	fmt.Printf("Outfile: %s\n", outfile)
 
 	fmt.Println(rom.Debug())
@@ -39,5 +39,5 @@ func main() {
 }
 
 func StripExtension(filename string) string {
-	return filename[:len(filename) - len(filepath.Ext(filename))]
+	return filename[:len(filename)-len(filepath.Ext(filename))]
 }

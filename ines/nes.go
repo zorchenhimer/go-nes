@@ -23,12 +23,12 @@ type NesRom struct {
 	PrgCrc  Crc32
 	ChrCrc  Crc32
 	MiscCrc Crc32
-	RomCrc	Crc32
+	RomCrc  Crc32
 }
 
 func (r *NesRom) Debug() string {
 	return r.Header.Debug() +
-	fmt.Sprintf("\nRomCrc: %s\nPrgCrc: %s\nChrCrc: %s\nMiscCrc: %s", r.RomCrc.HexString(), r.PrgCrc.HexString(), r.ChrCrc.HexString(), r.MiscCrc.HexString())
+		fmt.Sprintf("\nRomCrc: %s\nPrgCrc: %s\nChrCrc: %s\nMiscCrc: %s", r.RomCrc.HexString(), r.PrgCrc.HexString(), r.ChrCrc.HexString(), r.MiscCrc.HexString())
 }
 
 func (r *NesRom) WriteFile(filename string) error {

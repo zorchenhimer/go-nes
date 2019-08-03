@@ -17,5 +17,3 @@ var NESModel color.Model = color.ModelFunc(nesModel)
 func nesModel(c color.Color) color.Color {
 	return DefaultPalette.Convert(c)
 }
-
-

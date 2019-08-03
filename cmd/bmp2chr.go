@@ -57,5 +57,5 @@ func main() {
 }
 
 func StripExtension(filename string) string {
-	return filename[:len(filename) - len(filepath.Ext(filename))]
+	return filename[:len(filename)-len(filepath.Ext(filename))]
 }

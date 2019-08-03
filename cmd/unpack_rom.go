@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 
 	"github.com/zorchenhimer/go-nes/ines"
@@ -21,7 +21,7 @@ func main() {
 	}
 
 	outdir := filepath.Base(os.Args[1])
-	outdir = outdir[:len(outdir) - len(filepath.Ext(outdir))] + "/"
+	outdir = outdir[:len(outdir)-len(filepath.Ext(outdir))] + "/"
 	err := os.MkdirAll(outdir, 0777)
 	if err != nil {
 		fmt.Printf("Unable to create output directory: %v", err)
@@ -43,14 +43,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = ioutil.WriteFile(outdir + "prg.dat", rom.PrgRom, 0777)
+	err = ioutil.WriteFile(outdir+"prg.dat", rom.PrgRom, 0777)
 	if err != nil {
 		fmt.Printf("Error writing PRG data: %v", err)
 		os.Exit(1)
 	}
 
 	if rom.Header.ChrSize > 0 {
-		err = ioutil.WriteFile(outdir + "chr.dat", rom.ChrRom, 0777)
+		err = ioutil.WriteFile(outdir+"chr.dat", rom.ChrRom, 0777)
 		if err != nil {
 			fmt.Printf("Error writing CHR data: %v", err)
 			os.Exit(1)
@@ -58,7 +58,7 @@ func main() {
 	}
 
 	if rom.Header.MiscSize > 0 {
-		err = ioutil.WriteFile(outdir + "misc.dat", rom.MiscRom, 0777)
+		err = ioutil.WriteFile(outdir+"misc.dat", rom.MiscRom, 0777)
 		if err != nil {
 			fmt.Printf("Error writing MISC data: %v", err)
 			os.Exit(1)
@@ -66,7 +66,7 @@ func main() {
 	}
 
 	// Split CHR into 8k chunks
-	if rom.Header.ChrSize == 0 || rom.Header.ChrSize % 8 != 0 {
+	if rom.Header.ChrSize == 0 || rom.Header.ChrSize%8 != 0 {
 		fmt.Printf("Unexpected CHR size %d ($%04X). Unable to split.", rom.Header.ChrSize, rom.Header.ChrSize)
 		os.Exit(1)
 	}

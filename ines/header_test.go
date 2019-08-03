@@ -18,8 +18,8 @@ func TestHeaderRecode(t *testing.T) {
 		Nes2:           true,
 		Mapper:         12,
 
-		Nes2Mapper:      16,
-		SubMapper:       4,
+		Nes2Mapper: 16,
+		SubMapper:  4,
 
 		Console: CT_EXTENDED,
 	}

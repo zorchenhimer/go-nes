@@ -42,13 +42,13 @@ type Header struct {
 	Mirroring        MirrorType
 	//VSUnisystem      bool
 	//PlayChoice_10    bool
-	Nes2             bool
-	Mapper           uint8
+	Nes2   bool
+	Mapper uint8
 
 	//ExtendedConsole bool
-	Nes2Mapper      uint16
-	SubMapper       uint8
-	Console			ConsoleType
+	Nes2Mapper uint16
+	SubMapper  uint8
+	Console    ConsoleType
 }
 
 func (h Header) Debug() string {
