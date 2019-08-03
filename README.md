@@ -137,7 +137,7 @@ General command format.
 
 Unpack a ROM into PRG and CHR binary files and a `header.json` file.
 
-    $ romutil unpack input.rom
+    $ romutil unpack input.nes
 
 Re-pack an unpacked ROM.
 
@@ -145,20 +145,20 @@ Re-pack an unpacked ROM.
 
 Print mapper info and hashes (CRC, MD5, SHA, etc) to the console.
 
-    $ romutil info input.rom
+    $ romutil info input.nes
 
 Generate image visualizing ROM usage.  Defaults to replacing the input file's
-`.rom` extension with `.png`.
+`.nes` extension with `.png`.
 
 Visualize both total usage, and "data type" stuff.  Eg, make CHR data
 distinguishable at a glance (data as shades of grey?).
 
-    $ romutil usage input.rom [options]
+    $ romutil usage input.nes [options]
 
 Convert to NES2.0 ROM format.  If ROM is already a NES2.0 ROM, verify header
 matches data (sizes, etc).
 
-    $ romutil nes2 input.rom
+    $ romutil nes2 input.nes
 
 ## Custom rolled flag parsing
 
