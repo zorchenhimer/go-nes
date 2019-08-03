@@ -67,6 +67,23 @@ func (pt *PatternTable) AddTile(tile *Tile) {
 }
 
 // Returns before/after count
+func (pt *PatternTable) RemoveEmpty() (int, int) {
+	tiles := []*Tile{}
+	pt.ReducedIds = []int{}
+	for idx, tile := range pt.Patterns {
+		if tile.IsEmpty() {
+			continue
+		}
+
+		pt.ReducedIds = append(pt.ReducedIds, idx)
+		tiles = append(tiles, tile)
+	}
+
+	pt.Patterns = tiles
+	return len(pt.ReducedIds), len(pt.Patterns)
+}
+
+// Returns before/after count
 func (pt *PatternTable) RemoveDuplicates(removeEmpty bool) (int, int) {
 	tiles := []*Tile{}
 	pt.ReducedIds = []int{}
