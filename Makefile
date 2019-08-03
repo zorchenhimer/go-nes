@@ -1,22 +1,27 @@
 
-#EXT=
-#
-#ifeq ($(OS),Windows_NT)
-#	EXT=.exe
-#endif
+EXT=
+ifeq ($(OS),Windows_NT)
+EXT=.exe
+endif
 
-#COMMANDS= bmp2chr
+UTILS := chrutil
+EXES := $(addsuffix .exe,$(addprefix bin/,$(UTILS)))
+SRCS := $(addsuffix .go,$(addprefix cmd/,$(UTILS)))
 
 .PHONY: all clean fmt
 
-all: fmt cmd/bmp2chr.exe
+all: fmt $(EXES)
 
 fmt:
 	gofmt -w .
 
 clean:
-	rm cmd/*.exe
+	-rm cmd/*.exe
+	-rm bin/*.*
 
-cmd/bmp2chr.exe: cmd/bmp2chr.go
-	go build -o cmd/bmp2chr.exe cmd/bmp2chr.go
+bin/%.exe: cmd/%.go
+	go build -o $@ $<
+
+bin/%: cmd/%.go
+	go build -o $@ $<
 
