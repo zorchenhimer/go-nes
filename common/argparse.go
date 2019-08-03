@@ -3,8 +3,11 @@ package common
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/mitchellh/go-wordwrap"
 )
 
 // Valid options can only contain alphanumerics and dashes.  Because I said so.
@@ -28,17 +31,30 @@ type CommandParser struct {
 
 	// Has `Parse()` already been called?
 	parsed bool
+
+	// Printed with --help
+	programDescription string
 }
 
 // NewCommandParser returns a new empty CommandParser.  Options need to be
 // added with `AddOption()`.
-func NewCommandParser() *CommandParser {
+func NewCommandParser(description string) *CommandParser {
 	return &CommandParser{
-		AvailableOptions: []CommandOption{},
-		GlobalOptions:    map[string]string{},
-		FileOptions:      []map[string]string{},
-		currentInput:     -1,
-		parsed:           false,
+		AvailableOptions: []CommandOption{
+			CommandOption{
+				LongName:     "help",
+				ShortName:    "h",
+				ExpectsValue: false,
+				DefaultValue: "",
+				Description:  "Print this help and exit.",
+			},
+		},
+
+		GlobalOptions:      map[string]string{},
+		FileOptions:        []map[string]string{},
+		currentInput:       -1,
+		parsed:             false,
+		programDescription: description,
 	}
 }
 
@@ -135,11 +151,17 @@ func (cp *CommandParser) Parse() error {
 		}
 	}
 
+	cp.parsed = true
+
+	if cp.GetBoolOption("help") {
+		cp.Help()
+		os.Exit(1) // should this be zero?
+	}
+
 	if len(cp.FileOptions) == 0 {
 		return fmt.Errorf("No input files given!")
 	}
 
-	cp.parsed = true
 	return nil
 }
 
@@ -180,25 +202,25 @@ func (cp CommandParser) GetOption(name string) (string, error) {
 	return "", fmt.Errorf("Invalid option in GetOption(): %q", name)
 }
 
-func (cp CommandParser) GetBoolOption(name string) (bool, error) {
+func (cp CommandParser) GetBoolOption(name string) bool {
 	str, err := cp.GetOption(name)
 	if err != nil {
-		return false, err
+		return false
 	}
 
 	var val bool
 	_, err = fmt.Sscanf(str, "%t", &val)
 	if err != nil {
-		return false, err
+		return false
 	}
 
-	return val, nil
+	return val
 }
 
 // AddOption adds an available option.  Calling this after Parse() will
 // throw an error.  Attempting to add a duplicate or invalid option will
 // cause a panic.
-func (cp *CommandParser) AddOption(longName, shortName string, expectsValue bool, value string) {
+func (cp *CommandParser) AddOption(longName, shortName string, expectsValue bool, value, description string) {
 	if cp.parsed {
 		panic("AddOption called after Parsed")
 	}
@@ -224,12 +246,18 @@ func (cp *CommandParser) AddOption(longName, shortName string, expectsValue bool
 		ShortName:    shortName,
 		ExpectsValue: expectsValue,
 		DefaultValue: value,
+		Description:  description,
 	})
 }
 
 // isValidLongOption loos for the LongName `name` in AvailableOptions and returns
 // true if it is found and if it expects a value.
 func (cp CommandParser) isValidLongOption(name string) (bool, bool) {
+	// Hard-coded help thing
+	if name == "help" {
+		return true, false
+	}
+
 	for _, opt := range cp.AvailableOptions {
 		if opt.LongName == name {
 			return true, opt.ExpectsValue
@@ -250,6 +278,36 @@ func (cp CommandParser) isValidShortOption(name string) (bool, bool, string) {
 	return false, false, ""
 }
 
+// Print help and exit
+func (cp CommandParser) Help() {
+	fmt.Printf("%s\n", cp.programDescription)
+	fmt.Printf("Usage: %s [global-options] input-file [options] [input-file [options]...]\n", filepath.Base(os.Args[0]))
+	fmt.Printf("\nOptions:\n")
+
+	for _, opt := range cp.AvailableOptions {
+		if opt.ExpectsValue {
+			if opt.ShortName != "" {
+				fmt.Printf("\t-%s value\n", opt.ShortName)
+			}
+			fmt.Printf("\t--%s value\n", opt.LongName)
+		} else {
+			if opt.ShortName != "" {
+				fmt.Printf("\t-%s\n", opt.ShortName)
+			}
+			fmt.Printf("\t--%s\n", opt.LongName)
+		}
+
+		if opt.Description != "" {
+			wrapped := wordwrap.WrapString(opt.Description, 50)
+			lines := strings.Split(wrapped, "\n")
+			for _, line := range lines {
+				fmt.Printf("\t\t%s\n", line)
+			}
+		}
+		//fmt.Println("")
+	}
+}
+
 type CommandOption struct {
 	LongName     string
 	ShortName    string
@@ -259,7 +317,7 @@ type CommandOption struct {
 }
 
 func (co CommandOption) String() string {
-	return fmt.Sprintf("LongName:%q ShortName:%q ExpectsValue:%t DefaultValue:%q",
+	return fmt.Sprintf("LongName:%q ShortName:%q ExpectsValue:%t DefaultValue:%q Description:%q",
 		co.LongName,
 		co.ShortName,
 		co.ExpectsValue,

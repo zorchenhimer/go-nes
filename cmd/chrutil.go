@@ -10,15 +10,33 @@ import (
 )
 
 func main() {
-	cp := common.NewCommandParser()
-	cp.AddOption("output", "o", true, "")
-	cp.AddOption("remove-duplicates", "d", false, "false")
-	cp.AddOption("8x16-sprites", "", false, "false")
-	cp.AddOption("assembly-output", "a", false, "false")
-	cp.AddOption("font", "f", false, "false")
-	cp.AddOption("text", "t", true, "")
-	cp.AddOption("start-id", "i", true, "0")
-	cp.AddOption("debug", "", false, "false")
+	cp := common.NewCommandParser("Convert bitmap images into CHR images")
+	cp.AddOption("output", "o", true, "",
+		"File to write output.")
+	cp.AddOption("remove-duplicates", "d", false, "false",
+		"Remove duplicate tiles.")
+	cp.AddOption("debug", "", false, "false",
+		"Print debug info to console.")
+	cp.AddOption("remove-empty", "", false, "false",
+		"Remove empty tiles.")
+
+	// Unimplemented
+	cp.AddOption("8x16-sprites", "", false, "false",
+		"// TODO")
+	cp.AddOption("asm", "a", false, "false",
+		"// TODO\nWrite output as assembly instead of binary CHR data.")
+	cp.AddOption("text", "t", true, "",
+		"// TODO")
+	cp.AddOption("start-id", "i", true, "0",
+		"// TODO\nStart at this ID when reading the input file.")
+
+	// Assumes --asm --first-plane --remove-duplaciates
+	cp.AddOption("font", "f", false, "false",
+		"// TODO\nConvert bitmap font to assembly.  Assumes --asm --first-plane --remove-duplaciates")
+
+	// Only write the first bit plane of CHR.  Only usable with --asm.
+	cp.AddOption("first-plane", "", false, "false",
+		"// TODO\nOnly write the first bit plane of CHR data.  Only usable with --asm.")
 
 	err := cp.Parse()
 	if err != nil {
@@ -26,8 +44,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Probably shouldn't ignore this error, lol
-	if dbg, _ := cp.GetBoolOption("debug"); dbg {
+	if cp.GetBoolOption("debug") {
 		cp.Debug()
 	}
 
@@ -39,13 +56,13 @@ func main() {
 		// === Gather options ===
 		inputFile, err := cp.GetOption("input-filename")
 		if err != nil {
-			fmt.Printf("Error parsing filename: %v\n", err)
+			fmt.Printf("Error getting filename: %v\n", err)
 			os.Exit(1)
 		}
 
 		outputFile, err := cp.GetOption("output")
 		if err != nil {
-			fmt.Printf("Error parsing output name: %v\n", err)
+			fmt.Printf("Error getting output name: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -54,6 +71,14 @@ func main() {
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
+		}
+
+		rmEmpty := cp.GetBoolOption("remove-empty")
+
+		if cp.GetBoolOption("remove-duplicates") {
+			pt.RemoveDuplicates(rmEmpty)
+		} else if rmEmpty {
+			pt.RemoveEmpty()
 		}
 
 		var file *os.File
