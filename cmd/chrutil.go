@@ -1,12 +1,16 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"image/png"
+	"io/ioutil"
 	"os"
-	//"path/filepath"
+	"path/filepath"
+	"strings"
 
 	"github.com/zorchenhimer/go-nes/common"
-	"github.com/zorchenhimer/go-nes/image"
+	nesimg "github.com/zorchenhimer/go-nes/image"
 )
 
 func main() {
@@ -19,12 +23,16 @@ func main() {
 		"Print debug info to console.")
 	cp.AddOption("remove-empty", "", false, "false",
 		"Remove empty tiles.")
+	cp.AddOption("asm", "a", false, "false",
+		"Write output as assembly instead of binary CHR data.")
+
+	// Only write the first bit plane of CHR.  Only usable with --asm.
+	cp.AddOption("first-plane", "", false, "false",
+		"// TODO\nOnly write the first bit plane of CHR data.  Only usable with --asm.")
 
 	// Unimplemented
 	cp.AddOption("8x16-sprites", "", false, "false",
 		"// TODO")
-	cp.AddOption("asm", "a", false, "false",
-		"// TODO\nWrite output as assembly instead of binary CHR data.")
 	cp.AddOption("text", "t", true, "",
 		"// TODO")
 	cp.AddOption("start-id", "i", true, "0",
@@ -33,10 +41,6 @@ func main() {
 	// Assumes --asm --first-plane --remove-duplaciates
 	cp.AddOption("font", "f", false, "false",
 		"// TODO\nConvert bitmap font to assembly.  Assumes --asm --first-plane --remove-duplaciates")
-
-	// Only write the first bit plane of CHR.  Only usable with --asm.
-	cp.AddOption("first-plane", "", false, "false",
-		"// TODO\nOnly write the first bit plane of CHR data.  Only usable with --asm.")
 
 	err := cp.Parse()
 	if err != nil {
@@ -48,9 +52,9 @@ func main() {
 		cp.Debug()
 	}
 
-	// Keep track of open files and close them when we're done.  This is
-	// here so we can concatenate multiple input files easier.
-	openFiles := map[string]*os.File{}
+	// List of destination images, but not converted into their
+	// destination format.
+	openPatterns := map[string]*nesimg.PatternTable{}
 
 	for cp.NextInput() {
 		// === Gather options ===
@@ -66,8 +70,24 @@ func main() {
 			os.Exit(1)
 		}
 
+		if outputFile == "" {
+			fmt.Println("Missing output file!")
+			os.Exit(1)
+		}
+
 		// === Do the things ===
-		pt, err := image.LoadBitmap(inputFile)
+		var pt *nesimg.PatternTable
+		inExt := filepath.Ext(inputFile)
+
+		switch strings.ToLower(inExt) {
+		case ".bmp":
+			pt, err = nesimg.LoadBitmap(inputFile)
+		case ".chr":
+			pt, err = nesimg.LoadCHR(inputFile)
+		default:
+			err = fmt.Errorf("Unsupported input format: %q", inExt)
+		}
+
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -81,31 +101,45 @@ func main() {
 			pt.RemoveEmpty()
 		}
 
-		var file *os.File
-		var ok bool
-
-		if file, ok = openFiles[outputFile]; !ok {
-			file, err = os.Create(outputFile)
-			if err != nil {
-				fmt.Printf("Error opening output file %q: %v\n", outputFile, err)
-				os.Exit(1)
-			}
-			openFiles[outputFile] = file
+		// Use a PatternTable as the intermediate format, not the
+		// files's destination format.
+		if destPt, ok := openPatterns[outputFile]; !ok {
+			openPatterns[outputFile] = pt
+		} else {
+			destPt.AddPatternTable(pt)
 		}
-
-		file.Write(pt.Chr())
 	}
 
-	errored := false
-	for name, file := range openFiles {
-		err = file.Close()
+	// Write each Pattern table to its file, converting to the correct format
+	// on the fly.
+	for name, pt := range openPatterns {
+		var data []byte
+		ext := filepath.Ext(name)
+
+		switch strings.ToLower(ext) {
+		case ".chr":
+			data = pt.Chr()
+		case ".png":
+			pt.PadTiles()
+			buff := bytes.NewBuffer([]byte{})
+			err = png.Encode(buff, pt)
+			data = buff.Bytes()
+		case ".asm":
+			data = []byte(pt.Asm(cp.GetBoolOption("first-plane")))
+		default:
+			fmt.Printf("Unsupported output format: %q\n", ext)
+			os.Exit(1)
+		}
+
+		if strings.ToLower(ext) != ".asm" && cp.GetBoolOption("first-plane") {
+			fmt.Printf("--first-plane is only usable with the --asm flag.")
+			os.Exit(1)
+		}
+
+		err = ioutil.WriteFile(name, data, 0777)
 		if err != nil {
-			fmt.Printf("Error closing file %q: %v\n", name, err)
-			errored = true
+			fmt.Printf("Error writing file %q: %v\n", name, err)
+			os.Exit(1)
 		}
-	}
-
-	if errored {
-		os.Exit(1)
 	}
 }

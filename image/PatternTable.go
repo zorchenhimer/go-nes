@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"io/ioutil"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -66,6 +63,12 @@ func (pt *PatternTable) AddTile(tile *Tile) {
 	pt.Patterns = append(pt.Patterns, tile)
 }
 
+func (pt *PatternTable) AddPatternTable(newPt *PatternTable) {
+	for _, tile := range newPt.Patterns {
+		pt.AddTile(tile)
+	}
+}
+
 // Returns before/after count
 func (pt *PatternTable) RemoveEmpty() (int, int) {
 	tiles := []*Tile{}
@@ -108,6 +111,7 @@ OUTER:
 	return len(pt.ReducedIds), len(pt.Patterns)
 }
 
+// Chr returns the pattern table data as bytes in the CHR format.
 func (pt *PatternTable) Chr() []byte {
 	chr := []byte{}
 
@@ -118,34 +122,43 @@ func (pt *PatternTable) Chr() []byte {
 	return chr
 }
 
-func (pt *PatternTable) WriteFile(filename string) error {
-	chr := []byte{}
+// PadTiles ensures that all rows have 16 tiles in them.
+func (pt *PatternTable) PadTiles() {
+	emptyTile := NewTile(0)
+	for len(pt.Patterns)%16 != 0 {
+		pt.Patterns = append(pt.Patterns, emptyTile)
+	}
+}
+
+// WriteFile writes the CHR data of all the tiles in assembly format to
+// the given file.
+func (pt *PatternTable) Asm(firstPlane bool) string {
+	var chrStr strings.Builder
+	var idsStr strings.Builder
 
 	for _, t := range pt.Patterns {
-		chr = append(chr, t.Chr()...)
+		//chr = append(chr, t.Chr()...)
+		// TODO: pass --first-plane here and add a --hex or --binary flag for other param
+		chrStr.WriteString(t.Asm(firstPlane, true) + "\n")
 	}
 
 	// Only write tile IDs if duplicates have been removed
 	if pt.ReducedIds != nil {
-		name := filename[:len(filename)-len(filepath.Ext(filename))] + ".ids.asm"
-		file, err := os.Create(name)
-		if err != nil {
-			return err
-		}
-		defer file.Close()
-
 		line := []string{}
 		for i := 0; i < len(pt.ReducedIds); i++ {
 			line = append(line, fmt.Sprintf("$%02X", pt.ReducedIds[i]))
 			if i%32 == 0 && i != 0 {
-				fmt.Fprintf(file, ".byte %s\n", strings.Join(line, ", "))
+				fmt.Fprintf(&idsStr, ".byte %s\n", strings.Join(line, ", "))
 				line = []string{}
 			}
 		}
-		fmt.Fprintf(file, ".byte %s\n", strings.Join(line, ", "))
+		fmt.Fprintf(&idsStr, ".byte %s\n", strings.Join(line, ", "))
 	}
 
-	return ioutil.WriteFile(filename, chr, 0777)
+	if idsStr.Len() > 0 {
+		return chrStr.String() + "\n" + idsStr.String()
+	}
+	return chrStr.String()
 }
 
 // Implement the image.Image interface
@@ -159,7 +172,7 @@ func (pt *PatternTable) Bounds() image.Rectangle {
 	if len(pt.Patterns) < 16 {
 		width = len(pt.Patterns) * 8
 	}
-	height := int(math.Ceil(float64(width)/16.0)) * 8
+	height := int(math.Ceil(float64(len(pt.Patterns))/16.0)) * 8
 	return image.Rect(0, 0, width, height)
 }
 
@@ -179,16 +192,27 @@ func (pt *PatternTable) At(x, y int) color.Color {
 //	panic("PatternTable.Draw() is not implemented")
 //}
 
+// returns the tile that contains the pixel at the X/Y coordinate
 func (pt *PatternTable) getTileAtCoord(x, y int) *Tile {
 	// This is integer division.  The results are
 	// automatically floor()'d.
-	row := y / 8
+	// Row and column of the Tile, given the x, y of the whole table
 	col := x / 8
+	row := y / 8
 
 	// Tile index
-	idx := (row * 8) + col
+	idx := (row * 16) + col
 
 	// Get the tile
+	if idx >= len(pt.Patterns) || idx == -1 {
+		panic(fmt.Sprintf("getTileAtCoord() index too large: %d/%d (%d, %d) col/row:(%d, %d) rect: %v",
+			idx,
+			len(pt.Patterns)-1, // last idx of this slice
+			x, y,
+			col, row,
+			pt.Bounds(),
+		))
+	}
 	return pt.Patterns[idx]
 }
 

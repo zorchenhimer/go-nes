@@ -3,7 +3,7 @@ package image
 import (
 	"fmt"
 	"image"
-	//"image/color"
+	"image/color"
 	"strings"
 )
 
@@ -43,7 +43,7 @@ func (thisTile *Tile) IsIdentical(otherTile *Tile) bool {
 // into the final CHR layout during assemble time.
 type TileLayout int
 
-const (
+const ( // currently unused
 	TL_SINGLE = iota // Default.  A single 8x8 tile.
 	TL_8X16          // 8x16 sprites.
 	TL_ROW           // Row sequential
@@ -167,10 +167,53 @@ func (t *Tile) Asm(half, binary bool) string {
 	if half {
 		return ".byte " + strings.Join(p1, "\n.byte ") + "\n"
 	}
-	return ".byte " + strings.Join(p1, ", ") + "\n.byte" + strings.Join(p2, ", ")
+	return ".byte " + strings.Join(p1, ", ") + "\n.byte " + strings.Join(p2, ", ")
 }
 
+// Chr returns a slice of bytes that contain both the bit planes of
+// a tile's CHR data.
 func (t *Tile) Chr() []byte {
 	plane1, plane2 := t.getChrBin()
 	return append(plane1, plane2...)
+}
+
+// image.Image implementation
+func (t *Tile) ColorModel() color.Model {
+	return NESModel
+}
+
+func (t *Tile) Bounds() image.Rectangle {
+	return image.Rect(0, 0, 8, 8)
+}
+
+func (t *Tile) At(x, y int) color.Color {
+	// x = 0
+	// y = 1
+	// idx = (0 * 8) + 1
+	val := t.Pix[(y*8)+x]
+	return t.Palette[val]
+}
+
+// drawer.Image implementation
+func (t *Tile) Set(x, y int, c color.Color) {
+	palcolor := t.Palette.Convert(c)
+
+	idx, err := getColorIndex(t.Palette, palcolor)
+	if err != nil {
+		// Don't panic, just use the first color.
+		fmt.Printf("WARNING: Set() trying to use a color not in the palette!")
+		idx = 0
+	}
+
+	t.SetPaletteIndex(x, y, uint8(idx))
+}
+
+// SetPaletteIndex works like Set(), but uses an index instead of a color as input.
+func (t *Tile) SetPaletteIndex(x, y int, idx uint8) {
+	if int(idx) > len(t.Palette) {
+		// Don't panic, just use the first color.
+		fmt.Printf("WARNING: SetPaletteIndex() trying to use a color not in the palette!")
+		idx = 0
+	}
+	t.Pix[(x*8)+y] = uint8(idx)
 }

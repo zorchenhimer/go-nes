@@ -1,9 +1,8 @@
 package image
 
 import (
-//"image"
-//"image/color"
-//"io"
+	"fmt"
+	"io/ioutil"
 )
 
 /*
@@ -42,6 +41,49 @@ func (t Tile) ToChr() []byte {
 	// return the tiles two planes
 	return append(planeA, planeB...)
 }
+
+func LoadCHR(filename string) (*PatternTable, error) {
+	raw, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to open CHR file for reading: %v", err)
+	}
+
+	// The data length needs to be a power of 16.
+	if len(raw)%16 != 0 {
+		return nil, fmt.Errorf("Invalid size of CHR data: %d", len(raw))
+	}
+
+	pt := NewPatternTable()
+
+	// Loop through each tile
+	for i := 0; i < len(raw); i += 16 {
+		tile := NewTile(i / 16)
+		plane1 := raw[i+0 : i+8]
+		plane2 := raw[i+8 : i+16]
+
+		for row := 0; row < 8; row++ {
+			p1 := plane1[row]
+			p2 := plane2[row]
+
+			// %x1xx xxxx
+			// %x0xx xxxx
+			// %xxxx xx01
+			for col := 0; col < 8; col++ {
+				a := ((p1 >> uint(7-col)) & 1)
+				b := ((p2 >> uint(7-col)) & 1)
+				px := (a<<1 | b)
+				tile.SetPaletteIndex(row, col, px)
+			}
+		}
+
+		pt.AddTile(tile)
+	}
+
+	return pt, nil
+}
+
+// These are some the functions for implementing the image.Image
+// interface for CHR files.
 
 // DecodeConfig reads the CHR binary and returns four colors and the dimensions of the image.
 //func DecodeConfig(r io.Reader) (image.Config, error) {

@@ -19,9 +19,9 @@ clean:
 	-rm cmd/*.exe
 	-rm bin/*.*
 
-bin/%.exe: cmd/%.go
+bin/%.exe: cmd/%.go image/*.go common/*.go ines/*.go
 	go build -o $@ $<
 
-bin/%: cmd/%.go
+bin/%: cmd/%.go image/*.go common/*.go ines/*.go
 	go build -o $@ $<
 
