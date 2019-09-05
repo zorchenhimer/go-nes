@@ -16,8 +16,8 @@ fmt:
 	gofmt -w .
 
 clean:
-	-rm cmd/*.exe
-	-rm bin/*.*
+	rm -f cmd/*.exe
+	rm -f bin/*.*
 
 bin/%.exe: cmd/%.go image/*.go common/*.go ines/*.go
 	go build -o $@ $<
