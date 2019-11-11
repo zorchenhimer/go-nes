@@ -118,7 +118,7 @@ func main() {
 
 		switch strings.ToLower(ext) {
 		case ".chr":
-			data = pt.Chr()
+			data = pt.Chr(cp.GetBoolOption("first-plane"))
 		case ".png":
 			pt.PadTiles()
 			buff := bytes.NewBuffer([]byte{})
@@ -131,7 +131,9 @@ func main() {
 			os.Exit(1)
 		}
 
-		if strings.ToLower(ext) != ".asm" && cp.GetBoolOption("first-plane") {
+		if strings.ToLower(ext) != ".asm" &&
+			strings.ToLower(ext) != ".chr" &&
+			cp.GetBoolOption("first-plane") {
 			fmt.Printf("--first-plane is only usable with the --asm flag.")
 			os.Exit(1)
 		}

@@ -112,11 +112,11 @@ OUTER:
 }
 
 // Chr returns the pattern table data as bytes in the CHR format.
-func (pt *PatternTable) Chr() []byte {
+func (pt *PatternTable) Chr(firstPlane bool) []byte {
 	chr := []byte{}
 
 	for _, t := range pt.Patterns {
-		chr = append(chr, t.Chr()...)
+		chr = append(chr, t.Chr(firstPlane)...)
 	}
 
 	return chr

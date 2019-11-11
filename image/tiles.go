@@ -172,8 +172,11 @@ func (t *Tile) Asm(half, binary bool) string {
 
 // Chr returns a slice of bytes that contain both the bit planes of
 // a tile's CHR data.
-func (t *Tile) Chr() []byte {
+func (t *Tile) Chr(firstPlane bool) []byte {
 	plane1, plane2 := t.getChrBin()
+	if firstPlane {
+		return plane1
+	}
 	return append(plane1, plane2...)
 }
 
