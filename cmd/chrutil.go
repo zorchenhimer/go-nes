@@ -26,6 +26,10 @@ func main() {
 	cp.AddOption("asm", "a", false, "false",
 		"Write output as assembly instead of binary CHR data.")
 
+	// Currently only used with the PNG output format
+	cp.AddOption("palette", "p", true, "#003973,#ADB531,#845E21,#C6E79C",
+		"Override the default palette with the supplied values.  Expects HTML Hex color codes separated by commas.  The default value being \"#003973,#ADB531,#845E21,#C6E79C\".  Currently only used with PNG output.")
+
 	// Only write the first bit plane of CHR.  Only usable with --asm.
 	cp.AddOption("first-plane", "", false, "false",
 		"// TODO\nOnly write the first bit plane of CHR data.  Only usable with --asm.")
@@ -121,6 +125,20 @@ func main() {
 			data = pt.Chr(cp.GetBoolOption("first-plane"))
 		case ".png":
 			pt.PadTiles()
+
+			val, err := cp.GetOption("palette")
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			pal, err := nesimg.ParseHexPalette(val)
+			if err != nil {
+				fmt.Printf("Invalid palette values: %v\n", err)
+				os.Exit(1)
+			}
+			pt.SetPalette(pal)
+
 			buff := bytes.NewBuffer([]byte{})
 			err = png.Encode(buff, pt)
 			data = buff.Bytes()

@@ -130,6 +130,12 @@ func (pt *PatternTable) PadTiles() {
 	}
 }
 
+func (pt *PatternTable) SetPalette(pal color.Palette) {
+	for _, t := range pt.Patterns {
+		t.Palette = pal
+	}
+}
+
 // WriteFile writes the CHR data of all the tiles in assembly format to
 // the given file.
 func (pt *PatternTable) Asm(firstPlane bool) string {
