@@ -34,6 +34,14 @@ func main() {
 	cp.AddOption("first-plane", "", false, "false",
 		"// TODO\nOnly write the first bit plane of CHR data.  Only usable with --asm.")
 
+	cp.AddOption("tile-count", "", true, "0",
+		"Number of tiles to read from the source image.")
+	cp.AddOption("tile-offset", "", true, "0",
+		"Number of tiles to skip from the source image.")
+
+	cp.AddOption("pad-tiles", "", true, "0",
+		"Pad the output with blank tiles until it the tile count is equal to or greater than the given value.")
+
 	// Unimplemented
 	cp.AddOption("8x16-sprites", "", false, "false",
 		"// TODO")
@@ -97,6 +105,27 @@ func main() {
 			os.Exit(1)
 		}
 
+		count := cp.GetIntOption("tile-count")
+		offset := cp.GetIntOption("tile-offset")
+		if count != 0 || offset != 0 {
+			//fmt.Printf("tile count: %d\ntile offset: %d\n", count, offset)
+			if offset > len(pt.Patterns) {
+				fmt.Println("Offset larger than pattern table length")
+				os.Exit(1)
+			}
+
+			if count == 0 {
+				count = len(pt.Patterns) - offset
+			}
+
+			npt := nesimg.NewPatternTable()
+			for i := offset; i < offset+count; i++ {
+				npt.AddTile(pt.Patterns[i])
+			}
+
+			pt = npt
+		}
+
 		rmEmpty := cp.GetBoolOption("remove-empty")
 
 		if cp.GetBoolOption("remove-duplicates") {
@@ -119,6 +148,8 @@ func main() {
 	for name, pt := range openPatterns {
 		var data []byte
 		ext := filepath.Ext(name)
+
+		pt.PadTileCount(cp.GetIntOption("pad-tiles"))
 
 		switch strings.ToLower(ext) {
 		case ".chr":

@@ -217,6 +217,20 @@ func (cp CommandParser) GetBoolOption(name string) bool {
 	return val
 }
 
+func (cp CommandParser) GetIntOption(name string) int {
+	str, err := cp.GetOption(name)
+	if err != nil {
+		return 0
+	}
+
+	var val int
+	_, err = fmt.Sscanf(str, "%d", &val)
+	if err != nil {
+		return 0
+	}
+	return val
+}
+
 // AddOption adds an available option.  Calling this after Parse() will
 // throw an error.  Attempting to add a duplicate or invalid option will
 // cause a panic.

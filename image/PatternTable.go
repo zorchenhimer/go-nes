@@ -130,6 +130,15 @@ func (pt *PatternTable) PadTiles() {
 	}
 }
 
+// PadTileCount ensures that at least count number of tiles exist
+// in the pattern table
+func (pt *PatternTable) PadTileCount(count int) {
+	emptyTile := NewTile(0)
+	for len(pt.Patterns) < count {
+		pt.Patterns = append(pt.Patterns, emptyTile)
+	}
+}
+
 func (pt *PatternTable) SetPalette(pal color.Palette) {
 	for _, t := range pt.Patterns {
 		t.Palette = pal
