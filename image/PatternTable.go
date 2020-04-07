@@ -88,12 +88,12 @@ func (pt *PatternTable) RemoveEmpty() (int, int) {
 
 // Returns before/after count
 func (pt *PatternTable) RemoveDuplicates(removeEmpty bool) (int, int) {
-	tiles := []*Tile{}
-	pt.ReducedIds = []int{}
+	tiles := []*Tile{}      // unique tiles
+	pt.ReducedIds = []int{} // idx is orig ID, value is new tile's old id
 
 OUTER:
-	for idx, tile := range pt.Patterns {
-		if tile.IsEmpty() && removeEmpty {
+	for _, tile := range pt.Patterns {
+		if removeEmpty && tile.IsEmpty() {
 			continue
 		}
 
@@ -103,7 +103,7 @@ OUTER:
 				continue OUTER
 			}
 		}
-		pt.ReducedIds = append(pt.ReducedIds, idx)
+		pt.ReducedIds = append(pt.ReducedIds, len(tiles))
 		tiles = append(tiles, tile)
 	}
 

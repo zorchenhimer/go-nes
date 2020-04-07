@@ -54,6 +54,9 @@ func main() {
 	cp.AddOption("font", "f", false, "false",
 		"// TODO\nConvert bitmap font to assembly.  Assumes --asm --first-plane --remove-duplaciates")
 
+	cp.AddOption("write-ids", "", true, "",
+		"Write tile IDs to a file to reconstruct an image.  Only available with --remove-duplicates or --remove-empty.")
+
 	err := cp.Parse()
 	if err != nil {
 		fmt.Printf("Command parse error: %v\n", err)
@@ -179,6 +182,51 @@ func main() {
 			fmt.Printf("Unsupported output format: %q\n", ext)
 			os.Exit(1)
 		}
+
+		if idfile, err := cp.GetOption("write-ids"); idfile != "" && err == nil {
+			if !(cp.GetBoolOption("remove-empty") || cp.GetBoolOption("remove-duplicates")) {
+				fmt.Println("--write-ids cannot be used without the --remove-empty or --remove-duplicates option.  Ignoring.")
+				goto SKIP_WRITE_IDS // i feel dirty
+			}
+			if len(pt.ReducedIds) > 512 {
+				fmt.Println("More than 512 tiles! Aborting.")
+				os.Exit(1)
+			}
+
+			tableA := []string{}
+			tableB := []string{}
+			for idx, id := range pt.ReducedIds {
+				// Tiles on the second pattern table will start as N+255
+				// so they need to be corrected.
+				if id > 255 {
+					id -= 255
+				}
+
+				// If a tile is more than 32 columns into a row, it's on
+				// the second nametable.
+				if idx%64 >= 32 {
+					tableB = append(tableB, fmt.Sprintf("%d", id))
+				} else {
+					tableA = append(tableA, fmt.Sprintf("%d", id))
+				}
+			}
+
+			f, err := os.Create(idfile)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			defer f.Close()
+
+			fmt.Fprintf(f, ": .word %d\n", len(tableA))
+			fmt.Fprintf(f, ": .byte %s\n", strings.Join(tableA, ", "))
+
+			if len(tableB) > 0 {
+				fmt.Fprintf(f, ": .word %d\n", len(tableB))
+				fmt.Fprintf(f, ": .byte %s\n", strings.Join(tableB, ", "))
+			}
+		}
+	SKIP_WRITE_IDS:
 
 		if strings.ToLower(ext) != ".asm" &&
 			strings.ToLower(ext) != ".chr" &&
