@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,20 +11,36 @@ import (
 	"github.com/zorchenhimer/go-nes/ines"
 )
 
+const usage string = `NES ROM Utility
+Usage: %s <command> <input> [options]
+
+Commands:
+	unpack
+		Unpack a ROM into a directory
+	pack
+		Pack an unpacked ROM given a directory
+	info
+		Print the header info about the ROM.
+	usage // TODO
+	nes2  // TODO
+`
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Missing command")
+		fmt.Println(usage)
 		os.Exit(1)
 	}
 
 	if len(os.Args) < 3 {
-		fmt.Println("Missing input file")
+		fmt.Println(usage)
 		os.Exit(1)
 	}
 
+	var err error
+
 	switch strings.ToLower(os.Args[1]) {
 	case "unpack":
-		cmdUnpack(os.Args[2])
+		err = cmdUnpack(os.Args[2:]...) //len(os.Args)
 	case "pack":
 		// TODO: test this and clean it up
 		dir := strings.Trim(os.Args[2], `/\`) + "/"
@@ -36,6 +53,10 @@ func main() {
 		fmt.Printf("Invalid command: %q\n", os.Args[2])
 		// TODO: print usage
 		os.Exit(1)
+	}
+
+	if err != nil {
+		fmt.Println(err)
 	}
 }
 
@@ -84,51 +105,121 @@ func cmdPack(dirName, romName string) {
 	}
 }
 
-func cmdUnpack(filename string) {
+func cmdUnpack(args ...string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("Missing filename")
+	}
+
+	filename := args[0]
 	outdir := filepath.Base(filename)
 	outdir = outdir[:len(outdir)-len(filepath.Ext(outdir))] + "/"
-	err := os.MkdirAll(outdir, 0777)
+
+	var (
+		SplitPrg     bool
+		SplitChr     bool
+		OutDirectory string
+	)
+
+	fs := flag.NewFlagSet("unpacking", 0)
+	fs.BoolVar(&SplitPrg, "split-prg", false, "Split the PRG data into 16kb chunks")
+	fs.BoolVar(&SplitChr, "split-chr", false, "Split the CHR data into 4kb chunks")
+	fs.StringVar(&OutDirectory, "directory", outdir, "Output directory")
+
+	var err error
+	if len(args) > 1 {
+		err = fs.Parse(args[1:])
+	} else {
+		err = fs.Parse([]string{})
+	}
+
 	if err != nil {
-		fmt.Printf("Unable to create output directory: %v", err)
-		os.Exit(1)
+		return err
+	}
+
+	if !strings.HasSuffix(OutDirectory, "/") {
+		OutDirectory = OutDirectory + "/"
+	}
+
+	err = os.MkdirAll(OutDirectory, 0777)
+	if err != nil {
+		return fmt.Errorf("Unable to create output directory: %v", err)
 	}
 
 	rom, err := ines.ReadRom(filename)
 	if err != nil {
-		fmt.Printf("Error reading rom: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("Error reading rom: %v", err)
 	}
 
-	err = rom.Header.WriteMeta(outdir + "header.json")
+	err = rom.Header.WriteMeta(OutDirectory + "header.json")
 	if err != nil {
-		fmt.Printf("Error writing header: %v", err)
-		os.Exit(1)
+		return fmt.Errorf("Error writing header: %v", err)
 	}
 
-	err = ioutil.WriteFile(outdir+"prg.dat", rom.PrgRom, 0777)
-	if err != nil {
-		fmt.Printf("Error writing PRG data: %v", err)
-		os.Exit(1)
+	if SplitPrg {
+		size := 16 * 1024
+		for i := 0; i < len(rom.PrgRom)/size; i++ {
+			var raw []byte
+			start, end := i*size, (i*size)+size
+
+			if i+size > len(rom.PrgRom) {
+				raw = rom.PrgRom[start:len(rom.PrgRom)]
+			} else {
+				raw = rom.PrgRom[start:end]
+			}
+
+			err = ioutil.WriteFile(fmt.Sprintf("%sprg_%d.dat", OutDirectory, i), raw, 0777)
+			if err != nil {
+				return fmt.Errorf("Error writing PRG data: %v", err)
+			}
+		}
+	} else {
+		err = ioutil.WriteFile(OutDirectory+"prg.dat", rom.PrgRom, 0777)
+		if err != nil {
+			return fmt.Errorf("Error writing PRG data: %v", err)
+		}
 	}
 
 	if rom.Header.ChrSize > 0 {
-		err = ioutil.WriteFile(outdir+"chr.dat", rom.ChrRom, 0777)
-		if err != nil {
-			fmt.Printf("Error writing CHR data: %v", err)
-			os.Exit(1)
+		if SplitChr {
+			size := 4 * 1024
+			for i := 0; i < len(rom.ChrRom)/size; i++ {
+				var raw []byte
+				start, end := i*size, (i*size)+size
+
+				if i+size > len(rom.ChrRom) {
+					raw = rom.ChrRom[start:len(rom.ChrRom)]
+				} else {
+					raw = rom.ChrRom[start:end]
+				}
+
+				err = ioutil.WriteFile(fmt.Sprintf("%schr_%d.dat", OutDirectory, i), raw, 0777)
+				if err != nil {
+					return fmt.Errorf("Error writing CHR data: %v", err)
+				}
+			}
+		} else {
+			err = ioutil.WriteFile(OutDirectory+"chr.dat", rom.ChrRom, 0777)
+			if err != nil {
+				return fmt.Errorf("Error writing CHR data: %v", err)
+			}
 		}
 	}
 
 	if rom.Header.MiscSize > 0 {
-		err = ioutil.WriteFile(outdir+"misc.dat", rom.MiscRom, 0777)
+		err = ioutil.WriteFile(OutDirectory+"misc.dat", rom.MiscRom, 0777)
 		if err != nil {
-			fmt.Printf("Error writing MISC data: %v", err)
-			os.Exit(1)
+			return fmt.Errorf("Error writing MISC data: %v", err)
 		}
 	}
 
-	// unpack_rom originally split the CHR into 8k chunks.  Should this
-	// be an option here?
+	//cdl, _ := ioutil.ReadFile(filename[:len(filename) - len(filepath.Ext(filename)] + ".cdl")
+	//if cdl != nil {
+	//	prg_cdl = cdl[:rom.Header.PrgSize]
+	//	//chr_cdl
+	//	if
+	//}
+
+	return nil
 }
 
 func cmdInfo(filename string) {
