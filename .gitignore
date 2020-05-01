@@ -1,4 +1,1 @@
-*.asm
-*.bmp
-*.chr
-*.exe
+bin/
