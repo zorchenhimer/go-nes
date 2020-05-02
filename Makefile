@@ -4,9 +4,8 @@ ifeq ($(OS),Windows_NT)
 EXT=.exe
 endif
 
-UTILS := chrutil romutil fontutil
+UTILS := chrutil romutil fontutil sbutil
 EXES := $(addsuffix .exe,$(addprefix bin/,$(UTILS)))
-SRCS := $(addsuffix .go,$(addprefix cmd/,$(UTILS)))
 
 .PHONY: all clean fmt
 
@@ -19,9 +18,11 @@ clean:
 	rm -f cmd/*.exe
 	rm -f bin/*.*
 
-bin/%.exe: cmd/%.go image/*.go common/*.go ines/*.go
+bin/chrutil$(EXT): cmd/chrutil.go common/*.go image/*.go
 	go build -o $@ $<
 
-bin/%: cmd/%.go image/*.go common/*.go ines/*.go
+bin/romutil$(EXT): cmd/romutil.go ines/*.go
 	go build -o $@ $<
 
+bin/sbutil$(EXT): cmd/sbutil.go studybox/*.go
+	go build -o $@ $<
