@@ -34,7 +34,8 @@ type Page struct {
 	Length            int
 	AudioOffsetLeadIn int
 	AudioOffsetData   int
-	StartOffset       int // offset in the file
+	FileOffset        int // offset in the file
+	DataOffset        int // offset in the file for the data
 
 	Data []byte
 }
@@ -42,7 +43,7 @@ type Page struct {
 func (p Page) String() string {
 	return fmt.Sprintf("%s @ %08X: %d %d %d %d",
 		p.Identifier,
-		p.StartOffset,
+		p.FileOffset,
 		p.Length,
 		p.AudioOffsetLeadIn,
 		p.AudioOffsetData,
@@ -101,7 +102,8 @@ func ReadTape(data []byte) (*StudyBox, error) {
 		if err != nil {
 			return nil, err
 		}
-		page.StartOffset = idx
+		page.FileOffset = idx
+		page.DataOffset = idx + 16
 		idx += page.Length + 8
 		sb.Data.Pages = append(sb.Data.Pages, page)
 	}
