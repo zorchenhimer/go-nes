@@ -4,20 +4,44 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/zorchenhimer/go-nes/studybox"
 )
 
-const inputDir string = `` //`F:/nes/StudyBox/studybox-emu/StudyBoxOthers/`
-const inputFile string = `ニュートンランド小3 算数 04月号 (13CE04).studybox`
-
 func main() {
-	var err error
-
-	raw, err := ioutil.ReadFile(inputDir + inputFile)
+	matches, err := filepath.Glob("*.studybox")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+
+	if len(matches) == 0 {
+		fmt.Println("No .studybox files found")
+		os.Exit(1)
+	}
+
+	for _, file := range matches {
+		err = processFile(file)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+}
+
+func processFile(filename string) error {
+	outDir := filepath.Base(filename)
+	outDir = strings.ReplaceAll(outDir, ".studybox", "")
+
+	err := os.MkdirAll(outDir, 0777)
+	if err != nil {
+		return err
+	}
+
+	raw, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return err
 	}
 
 	fmt.Printf("length: %d\n", len(raw))
@@ -37,10 +61,9 @@ func main() {
 			fmt.Printf("==> %v\n", err)
 		}
 
-		file, err := os.Create(fmt.Sprintf("Page_%02d.txt", pidx))
+		file, err := os.Create(fmt.Sprintf("%s/Page_%02d.txt", outDir, pidx))
 		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
+			return err
 		}
 		fmt.Fprintln(file, decoded)
 		file.Close()
@@ -59,11 +82,12 @@ func main() {
 		}
 
 		if len(chrData) > 0 {
-			err = ioutil.WriteFile(fmt.Sprintf("chrData_page%02d.chr", pidx), chrData, 0777)
+			err = ioutil.WriteFile(fmt.Sprintf("%s/chrData_page%02d.chr", outDir, pidx), chrData, 0777)
 			if err != nil {
-				fmt.Println("Unable to write data to file: ", err)
-				os.Exit(1)
+				return fmt.Errorf("Unable to write data to file: ", err)
 			}
 		}
 	}
+
+	return nil
 }
