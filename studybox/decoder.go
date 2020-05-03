@@ -42,23 +42,27 @@ var definedPackets = map[int]map[byte]decodeFunction{
 	},
 
 	1: map[byte]decodeFunction{
-		0x00: decodeUnknownS1T0,
+		0x00: decodeMarkDataEnd,
 	},
 
 	2: map[byte]decodeFunction{
+		0x02: decodeSetWorkRamLoad,
+		0x03: decodeMarkDataStart,
+		0x04: decodeMarkDataStart,
 		0x05: decodeDelay,
 	},
 }
 
+var state int // weeeeee
 func DecodePage(page *Page) (*DecodedData, error) {
 	var err error
 	decoded := &DecodedData{
 		Packets: []Packet{},
 	}
+	state = 0
 
 	fmt.Printf("Decoding page %s\n", page)
 
-	state := 0
 	for idx := 0; idx < len(page.Data); {
 		fmt.Printf("decoding packet at file offset: %08X\n", idx+page.DataOffset)
 
@@ -66,15 +70,23 @@ func DecodePage(page *Page) (*DecodedData, error) {
 			return decoded, fmt.Errorf("Packet at offset %08X does not start with $C5: %02X", idx+page.DataOffset, page.Data[idx])
 		}
 
-		df, ok := definedPackets[state][page.Data[idx+1]]
-		if !ok {
-			return decoded, fmt.Errorf("State %d packet with type %02X isn't implemented",
-				state, page.Data[idx+1])
-		}
 		var packet Packet
-		packet, state, err = df(page, idx)
-		if err != nil {
-			return decoded, err
+		if state == 1 && page.Data[idx+1] != 0x00 {
+			// bulk data
+			packet, state, err = decodeBulkData(page, idx)
+			if err != nil {
+				return decoded, err
+			}
+		} else {
+			df, ok := definedPackets[state][page.Data[idx+1]]
+			if !ok {
+				return decoded, fmt.Errorf("State %d packet with type %02X isn't implemented",
+					state, page.Data[idx+1])
+			}
+			packet, state, err = df(page, idx)
+			if err != nil {
+				return decoded, err
+			}
 		}
 		decoded.Packets = append(decoded.Packets, packet)
 		idx += packet.Meta().Length
@@ -102,14 +114,13 @@ func decodeHeader(page *Page, idx int) (Packet, int, error) {
 		PageNumber: uint8(page.Data[idx+6]),
 		Checksum:   page.Data[idx+8],
 		meta: PacketMeta{
-			State: 0,
-			Type:  1,
+			Start:  page.DataOffset + idx,
+			State:  state,
+			Type:   int(page.Data[idx+1]),
+			Length: 8,
 		},
 	}
-
-	ph.meta.Start = page.DataOffset + idx
 	ph.meta.Data = ph.meta.Start + idx + 5
-	ph.meta.Length = 8
 
 	checksum := calcChecksum(page.Data[idx : idx+ph.meta.Length-1])
 	if checksum != ph.Checksum {
@@ -136,12 +147,14 @@ func decodeDelay(page *Page, idx int) (Packet, int, error) {
 	}
 	pd := &PacketDelay{
 		Length: count,
-		meta:   PacketMeta{},
+		meta: PacketMeta{
+			Start:  page.DataOffset + idx,
+			State:  state,
+			Type:   int(page.Data[idx+1]),
+			Length: count + 3,
+		},
 	}
-
-	pd.meta.Start = page.DataOffset + idx
-	pd.meta.Data = pd.meta.Start + idx + 3
-	pd.meta.Length = count + 3
+	pd.meta.Data = pd.meta.Start + 3
 
 	checksum := calcChecksum(page.Data[idx : pd.meta.Length+idx])
 	if checksum != 0xC5 {
@@ -160,7 +173,7 @@ func decodeUnknownS1T0(page *Page, idx int) (Packet, int, error) {
 			Start:  page.DataOffset + idx,
 			Data:   page.DataOffset + idx + 2,
 			Length: 4,
-			State:  2,
+			State:  state,
 			Type:   0,
 		},
 	}
@@ -187,10 +200,159 @@ func decodeUnknownS1T0(page *Page, idx int) (Packet, int, error) {
 
 	state := 2
 	if page.Data[idx+2]&0xF0 == 0xF0 {
+		// this changes to state 3, not zero!
 		state = 0
 	}
 
 	return unk, state, nil
+}
+
+func decodeMarkDataStart(page *Page, idx int) (Packet, int, error) {
+	packet := &PacketMarkDataStart{
+		meta: PacketMeta{
+			Start:  page.DataOffset + idx,
+			Data:   page.DataOffset + idx + 3,
+			Length: 6,
+			State:  state,
+			Type:   int(page.Data[idx+1]),
+		},
+		checksum: page.Data[idx+5],
+		ArgA:     page.Data[idx+3],
+		ArgB:     page.Data[idx+4],
+	}
+
+	checksum := calcChecksum(page.Data[idx : idx+5])
+	if checksum != packet.checksum {
+		return nil, 0, fmt.Errorf("Invalid checksum for UnknownS2T3 packet starting at offset %08X. Got %02X, expected %02X",
+			page.DataOffset+idx, checksum, packet.checksum)
+	}
+	return packet, 1, nil
+}
+
+func decodeMarkDataEnd(page *Page, idx int) (Packet, int, error) {
+	packet := &PacketMarkDataEnd{
+		meta: PacketMeta{
+			Start:  page.DataOffset + idx,
+			Data:   page.DataOffset + idx + 2,
+			Length: 4,
+			State:  state,
+			Type:   int(page.Data[idx+1]),
+		},
+		checksum: page.Data[idx+3],
+		Arg:      page.Data[idx+2],
+	}
+
+	checksum := calcChecksum(page.Data[idx : idx+3])
+	if checksum != packet.checksum {
+		return nil, 0, fmt.Errorf("Invalid checksum for UnknownS2T3 packet starting at offset %08X. Got %02X, expected %02X",
+			page.DataOffset+idx, checksum, packet.checksum)
+	}
+
+	newstate := 2
+	//if page.Data[idx+2]&0xF0 == 0xF0 {
+	//	// this changes to state 3, not zero!
+	//	newstate = 0
+	//}
+
+	return packet, newstate, nil
+
+}
+
+func decodeUnknownS2(page *Page, idx int) (Packet, int, error) {
+	packet := &PacketUnknown{
+		rawData: page.Data[idx : idx+6],
+		meta: PacketMeta{
+			Start:  page.DataOffset + idx,
+			Data:   page.DataOffset + idx + 3,
+			Length: 6,
+			State:  state,
+			Type:   int(page.Data[idx+1]),
+		},
+		checksum: page.Data[idx+5],
+	}
+
+	switch packet.meta.Type {
+	case 3:
+		packet.notes = "possibly nametable data?"
+	case 4:
+		packet.notes = "Pattern table data"
+	default:
+		packet.notes = "???"
+	}
+
+	checksum := calcChecksum(page.Data[idx : idx+5])
+	if checksum != packet.checksum {
+		return nil, 0, fmt.Errorf("Invalid checksum for UnknownS2T3 packet starting at offset %08X. Got %02X, expected %02X",
+			page.DataOffset+idx, checksum, packet.checksum)
+	}
+
+	return packet, 1, nil
+}
+
+// C5 02 02 nn mm zz
+// Map 8k ram bank nn to $6000-$7FFF; set load address to $mm00; zz = checksum
+func decodeSetWorkRamLoad(page *Page, idx int) (Packet, int, error) {
+	if page.Data[idx+1] != page.Data[idx+2] {
+		return nil, 0, fmt.Errorf("State 1 packet at offset %08X has missmatched type [%08X]: %d vs %d",
+			idx+page.DataOffset, idx+1+page.DataOffset, page.Data[idx+1], page.Data[idx+2])
+	}
+
+	packet := &PacketWorkRamLoad{
+		meta: PacketMeta{
+			Start:  page.DataOffset + idx,
+			Length: 6,
+			State:  state,
+			Type:   2,
+		},
+		bankId:          page.Data[idx+3],
+		loadAddressHigh: page.Data[idx+4],
+		checksum:        page.Data[idx+5],
+	}
+	packet.meta.Data = packet.meta.Start + 3
+
+	checksum := calcChecksum(page.Data[idx : idx+5])
+	if checksum != packet.checksum {
+		return nil, 0, fmt.Errorf("Invalid checksum for SetWorkRamLoad packet starting at offset %08X. Got %02X, expected %02X",
+			page.DataOffset+idx, checksum, packet.checksum)
+	}
+
+	return packet, 1, nil
+}
+
+func decodeBulkData(page *Page, idx int) (Packet, int, error) {
+	if page.Data[idx+1] == 0 {
+		return nil, 0, fmt.Errorf("Bulk data packet has a length of zero at offset %08X",
+			page.DataOffset+idx)
+	}
+
+	packet := &PacketBulkData{
+		meta: PacketMeta{
+			Start:  page.DataOffset + idx,
+			Length: int(page.Data[idx+1]) + 3,
+			State:  state,
+			Type:   1,
+		},
+		//data:     page.Data[idx+2 : idx+2+int(page.Data[idx+1])],
+		//checksum: page.Data[page.Data[idx+1]+3],
+	}
+
+	datalen := int(page.Data[idx+1])
+	packet.Data = page.Data[idx+2 : idx+2+datalen]
+	packet.checksum = page.Data[idx+len(packet.Data)+2]
+
+	checksum := calcChecksum(page.Data[idx : idx+packet.meta.Length-1])
+	if checksum != packet.checksum {
+		data := []string{}
+		for _, b := range packet.Data {
+			data = append(data, fmt.Sprintf("$%02X", b))
+		}
+		fmt.Printf("checksum data: %s\n", strings.Join(data, " "))
+		fmt.Printf("checksum address: %08X\n", page.DataOffset+idx+len(packet.Data)+2)
+		return nil, 0, fmt.Errorf("Invalid checksum for BulkData packet starting at offset %08X. Got %02X, expected %02X",
+			page.DataOffset+idx, checksum, packet.checksum)
+	}
+
+	return packet, 1, nil
 }
 
 func calcChecksum(data []byte) uint8 {
