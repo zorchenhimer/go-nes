@@ -30,6 +30,15 @@ func main() {
 	}
 }
 
+type dataType int
+
+const (
+	DT_None dataType = iota
+	DT_Nametable
+	DT_Pattern
+	DT_Script
+)
+
 func processFile(filename string) error {
 	outDir := filepath.Base(filename)
 	outDir = strings.ReplaceAll(outDir, ".studybox", "")
@@ -51,9 +60,9 @@ func processFile(filename string) error {
 		fmt.Println(err)
 	}
 
-	for _, page := range sb.Data.Pages {
-		fmt.Println(page)
-	}
+	//for _, page := range sb.Data.Pages {
+	//	fmt.Println(page)
+	//}
 
 	for pidx, page := range sb.Data.Pages {
 		decoded, err := studybox.DecodePage(page)
@@ -68,25 +77,78 @@ func processFile(filename string) error {
 		fmt.Fprintln(file, decoded)
 		file.Close()
 
-		var data bool
+		var data dataType = DT_None
+		var dataStartId int
 		chrData := []byte{}
-		for _, packet := range decoded.Packets {
+		ntData := []byte{}
+		scriptData := []byte{}
+
+		for i, packet := range decoded.Packets {
 			meta := packet.Meta()
 			if meta.State == 2 && meta.Type == 4 {
-				data = true
-			} else if bulk, ok := packet.(*studybox.PacketBulkData); data && ok {
-				chrData = append(chrData, bulk.Data...)
+				data = DT_Pattern
+				dataStartId = i
+			} else if meta.State == 2 && meta.Type == 3 {
+				data = DT_Nametable
+				dataStartId = i
+			} else if meta.State == 2 && meta.Type == 2 {
+				data = DT_Script
+				dataStartId = i
 			} else if meta.State == 1 && meta.Type == 0 {
-				data = false
+				switch data {
+				case DT_Pattern:
+					if len(chrData) > 0 {
+						err = ioutil.WriteFile(fmt.Sprintf("%s/chrData_page%02d_%04d.chr", outDir, pidx, dataStartId), chrData, 0777)
+						if err != nil {
+							return fmt.Errorf("Unable to write data to file: ", err)
+						}
+					}
+					chrData = []byte{}
+
+				case DT_Nametable:
+					if len(ntData) > 0 {
+						err = ioutil.WriteFile(fmt.Sprintf("%s/ntData_page%02d_%04d.dat", outDir, pidx, dataStartId), ntData, 0777)
+						if err != nil {
+							return fmt.Errorf("Unable to write data to file: ", err)
+						}
+					}
+					ntData = []byte{}
+
+				case DT_Script:
+					if len(scriptData) > 0 {
+						err = ioutil.WriteFile(fmt.Sprintf("%s/scriptData_page%02d_%04d.dat", outDir, pidx, dataStartId), scriptData, 0777)
+						if err != nil {
+							return fmt.Errorf("Unable to write data to file: ", err)
+						}
+
+						script, err := studybox.DissassembleScript(scriptData)
+						if err != nil {
+							return err
+						}
+
+						err = script.WriteToFile(fmt.Sprintf("%s/script_page%02d_%04d.txt", outDir, pidx, dataStartId))
+						if err != nil {
+							return fmt.Errorf("Unable to write data to file: %v", err)
+						}
+					}
+					scriptData = []byte{}
+				}
+
+				data = DT_None
+			} else {
+				if bulk, ok := packet.(*studybox.PacketBulkData); ok {
+					switch data {
+					case DT_Pattern:
+						chrData = append(chrData, bulk.Data...)
+					case DT_Nametable:
+						ntData = append(ntData, bulk.Data...)
+					case DT_Script:
+						scriptData = append(scriptData, bulk.Data...)
+					}
+				}
 			}
 		}
 
-		if len(chrData) > 0 {
-			err = ioutil.WriteFile(fmt.Sprintf("%s/chrData_page%02d.chr", outDir, pidx), chrData, 0777)
-			if err != nil {
-				return fmt.Errorf("Unable to write data to file: ", err)
-			}
-		}
 	}
 
 	return nil

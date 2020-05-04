@@ -64,7 +64,7 @@ func DecodePage(page *Page) (*DecodedData, error) {
 	fmt.Printf("Decoding page %s\n", page)
 
 	for idx := 0; idx < len(page.Data); {
-		fmt.Printf("decoding packet at file offset: %08X\n", idx+page.DataOffset)
+		//fmt.Printf("decoding packet at file offset: %08X\n", idx+page.DataOffset)
 
 		if page.Data[idx] != 0xC5 {
 			return decoded, fmt.Errorf("Packet at offset %08X does not start with $C5: %02X", idx+page.DataOffset, page.Data[idx])
