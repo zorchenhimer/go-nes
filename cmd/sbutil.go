@@ -40,6 +40,7 @@ const (
 )
 
 func processFile(filename string) error {
+	fmt.Println("-- Processing " + filename)
 	outDir := filepath.Base(filename)
 	outDir = strings.ReplaceAll(outDir, ".studybox", "")
 
@@ -53,7 +54,7 @@ func processFile(filename string) error {
 		return err
 	}
 
-	fmt.Printf("length: %d\n", len(raw))
+	//fmt.Printf("length: %d\n", len(raw))
 
 	sb, err := studybox.ReadTape(raw)
 	if err != nil {
@@ -123,12 +124,13 @@ func processFile(filename string) error {
 
 						script, err := studybox.DissassembleScript(scriptData)
 						if err != nil {
-							return err
-						}
-
-						err = script.WriteToFile(fmt.Sprintf("%s/script_page%02d_%04d.txt", outDir, pidx, dataStartId))
-						if err != nil {
-							return fmt.Errorf("Unable to write data to file: %v", err)
+							fmt.Println(err)
+						} else {
+							fmt.Printf("OK Page %02d @ %04d\n", pidx, dataStartId)
+							err = script.WriteToFile(fmt.Sprintf("%s/script_page%02d_%04d.txt", outDir, pidx, dataStartId))
+							if err != nil {
+								return fmt.Errorf("Unable to write data to file: %v", err)
+							}
 						}
 					}
 					scriptData = []byte{}
