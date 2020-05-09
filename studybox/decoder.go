@@ -7,24 +7,12 @@ import (
 	//"encoding/binary"
 )
 
-type DecodedData struct {
-	Packets []Packet
-}
-
 type PacketMeta struct {
 	Start  int
 	Data   int
 	Length int // length of whole packet
 	State  int // packet state type. -1 is unknown
 	Type   int // packet type ID. usually the second byte
-}
-
-func (dd *DecodedData) String() string {
-	str := []string{}
-	for _, p := range dd.Packets {
-		str = append(str, fmt.Sprintf("%08X: %s", p.Meta().Start, p.Asm()))
-	}
-	return strings.Join(str, "\n")
 }
 
 type Packet interface {
@@ -54,20 +42,17 @@ var definedPackets = map[int]map[byte]decodeFunction{
 }
 
 var state int // weeeeee
-func DecodePage(page *Page) (*DecodedData, error) {
+func (page *Page) decode() error {
 	var err error
-	decoded := &DecodedData{
-		Packets: []Packet{},
-	}
+	page.Packets = []Packet{}
 	state = 0
 
-	fmt.Printf("Decoding page %s\n", page)
-
 	for idx := 0; idx < len(page.Data); {
-		//fmt.Printf("decoding packet at file offset: %08X\n", idx+page.DataOffset)
-
 		if page.Data[idx] != 0xC5 {
-			return decoded, fmt.Errorf("Packet at offset %08X does not start with $C5: %02X", idx+page.DataOffset, page.Data[idx])
+			// Padding after the last valid packet.
+			dataLeft := len(page.Data) - idx + 1
+			page.Packets = append(page.Packets, &packetPadding{Length: dataLeft})
+			return nil
 		}
 
 		var packet Packet
@@ -75,24 +60,24 @@ func DecodePage(page *Page) (*DecodedData, error) {
 			// bulk data
 			packet, state, err = decodeBulkData(page, idx)
 			if err != nil {
-				return decoded, err
+				return err
 			}
 		} else {
 			df, ok := definedPackets[state][page.Data[idx+1]]
 			if !ok {
-				return decoded, fmt.Errorf("State %d packet with type %02X isn't implemented",
+				return fmt.Errorf("State %d packet with type %02X isn't implemented",
 					state, page.Data[idx+1])
 			}
 			packet, state, err = df(page, idx)
 			if err != nil {
-				return decoded, err
+				return err
 			}
 		}
-		decoded.Packets = append(decoded.Packets, packet)
+		page.Packets = append(page.Packets, packet)
 		idx += packet.Meta().Length
 	}
 
-	return decoded, nil
+	return nil
 }
 
 // Returns packet and next state
@@ -110,7 +95,7 @@ func decodeHeader(page *Page, idx int) (Packet, int, error) {
 		)
 	}
 
-	ph := &PacketHeader{
+	ph := &packetHeader{
 		PageNumber: uint8(page.Data[idx+6]),
 		Checksum:   page.Data[idx+8],
 		meta: PacketMeta{
@@ -145,7 +130,7 @@ func decodeDelay(page *Page, idx int) (Packet, int, error) {
 	if count%2 != 0 {
 		fmt.Printf("0xAA delay packet at offset %08X has odd number of 0xAA's", idx+page.FileOffset)
 	}
-	pd := &PacketDelay{
+	pd := &packetDelay{
 		Length: count,
 		meta: PacketMeta{
 			Start:  page.DataOffset + idx,
@@ -165,50 +150,8 @@ func decodeDelay(page *Page, idx int) (Packet, int, error) {
 	return pd, 1, nil
 }
 
-func decodeUnknownS1T0(page *Page, idx int) (Packet, int, error) {
-	// unknown packet
-	unk := &PacketUnknown{
-		rawData: page.Data[idx : idx+4],
-		meta: PacketMeta{
-			Start:  page.DataOffset + idx,
-			Data:   page.DataOffset + idx + 2,
-			Length: 4,
-			State:  state,
-			Type:   0,
-		},
-	}
-
-	var checksum uint8
-	for i := idx; i < unk.meta.Length+idx-1; i++ {
-		checksum ^= page.Data[i]
-	}
-
-	switch page.Data[idx+2] {
-	case 0x02:
-		unk.notes = "finished loading (script?) data?"
-	case 0x03:
-		unk.notes = "finished loading (nametable?) data?"
-	case 0x04:
-		unk.notes = "finished loading (pattern?) data?"
-	case 0x05:
-		unk.notes = "prepare for next address?"
-	case 0xF5:
-		unk.notes = "stop at end of page?"
-	default:
-		unk.notes = "???"
-	}
-
-	state := 2
-	if page.Data[idx+2]&0xF0 == 0xF0 {
-		// this changes to state 3, not zero!
-		state = 0
-	}
-
-	return unk, state, nil
-}
-
 func decodeMarkDataStart(page *Page, idx int) (Packet, int, error) {
-	packet := &PacketMarkDataStart{
+	packet := &packetMarkDataStart{
 		meta: PacketMeta{
 			Start:  page.DataOffset + idx,
 			Data:   page.DataOffset + idx + 3,
@@ -230,7 +173,7 @@ func decodeMarkDataStart(page *Page, idx int) (Packet, int, error) {
 }
 
 func decodeMarkDataEnd(page *Page, idx int) (Packet, int, error) {
-	packet := &PacketMarkDataEnd{
+	packet := &packetMarkDataEnd{
 		meta: PacketMeta{
 			Start:  page.DataOffset + idx,
 			Data:   page.DataOffset + idx + 2,
@@ -240,6 +183,7 @@ func decodeMarkDataEnd(page *Page, idx int) (Packet, int, error) {
 		},
 		checksum: page.Data[idx+3],
 		Arg:      page.Data[idx+2],
+		Reset:    (page.Data[idx+2]&0xF0 == 0xF0),
 	}
 
 	checksum := calcChecksum(page.Data[idx : idx+3])
@@ -259,7 +203,7 @@ func decodeMarkDataEnd(page *Page, idx int) (Packet, int, error) {
 }
 
 func decodeUnknownS2(page *Page, idx int) (Packet, int, error) {
-	packet := &PacketUnknown{
+	packet := &packetUnknown{
 		rawData: page.Data[idx : idx+6],
 		meta: PacketMeta{
 			Start:  page.DataOffset + idx,
@@ -297,7 +241,7 @@ func decodeSetWorkRamLoad(page *Page, idx int) (Packet, int, error) {
 			idx+page.DataOffset, idx+1+page.DataOffset, page.Data[idx+1], page.Data[idx+2])
 	}
 
-	packet := &PacketWorkRamLoad{
+	packet := &packetWorkRamLoad{
 		meta: PacketMeta{
 			Start:  page.DataOffset + idx,
 			Length: 6,
@@ -325,7 +269,7 @@ func decodeBulkData(page *Page, idx int) (Packet, int, error) {
 			page.DataOffset+idx)
 	}
 
-	packet := &PacketBulkData{
+	packet := &packetBulkData{
 		meta: PacketMeta{
 			Start:  page.DataOffset + idx,
 			Length: int(page.Data[idx+1]) + 3,
