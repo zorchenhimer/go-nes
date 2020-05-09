@@ -48,7 +48,7 @@ func (s *scriptOpCode) Type() string {
 }
 
 type scriptOpDefinition struct {
-	name string
+	name     string
 	argCount int   // inline opcode arguments
 	ctrl     uint8 // "parameter control" (to/from stack)
 }

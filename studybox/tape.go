@@ -3,7 +3,12 @@ package studybox
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
+	//"reflect"
 )
 
 // .studybox file format
@@ -13,9 +18,217 @@ type StudyBox struct {
 	Audio *TapeAudio
 }
 
+type dataType int
+
+const (
+	DT_None dataType = iota
+	DT_Nametable
+	DT_Pattern
+	DT_Script
+)
+
+/* --------------------- */
+
+func Read(filename string) (*StudyBox, error) {
+	raw, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	sb, err := readTape(raw)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, page := range sb.Data.Pages {
+		err = page.decode()
+		if err != nil {
+			fmt.Printf("==> %v\n", err)
+		}
+	}
+
+	return sb, nil
+}
+
+func (sb *StudyBox) Write(filename string) error {
+	return fmt.Errorf("Not implemented")
+}
+
+func Import(filename string) (*StudyBox, error) {
+	return nil, fmt.Errorf("Not implemented")
+}
+
+type StudyBoxJson struct {
+	Version uint
+	Pages   []jsonPage
+	Audio   string // filename of the audio
+}
+
+type jsonPage struct {
+	AudioOffsetLeadIn int
+	AudioOffsetData   int
+	Data              []jsonData
+}
+
+type jsonData struct {
+	Type   string
+	Values []int
+	File   string `json:",omitempty"`
+	Reset  bool   `json:",omitempty"`
+}
+
+func (sb *StudyBox) Export(directory string) error {
+	sbj := StudyBoxJson{
+		Version: 1,
+		Pages:   []jsonPage{},
+		Audio:   directory + "/audio" + sb.Audio.ext(),
+	}
+
+	for pidx, page := range sb.Data.Pages {
+		jp := jsonPage{
+			AudioOffsetLeadIn: page.AudioOffsetLeadIn,
+			AudioOffsetData:   page.AudioOffsetData,
+			Data:              []jsonData{},
+		}
+
+		file, err := os.Create(fmt.Sprintf("%s/Page_%02d.txt", directory, pidx))
+		if err != nil {
+			return err
+		}
+		fmt.Fprintln(file, page.InfoString())
+		file.Close()
+
+		var dataStartId int
+		chrData := []byte{}
+		ntData := []byte{}
+		scriptData := []byte{}
+
+		data := jsonData{}
+		for i, packet := range page.Packets {
+			switch p := packet.(type) {
+			case *packetHeader:
+				data.Type = "header"
+				data.Values = []int{int(p.PageNumber)}
+
+				jp.Data = append(jp.Data, data)
+				data = jsonData{}
+
+			case *packetDelay:
+				data.Type = "delay"
+				data.Values = []int{p.Length}
+
+			case *packetWorkRamLoad:
+				data.Type = "script"
+				data.Values = []int{int(p.bankId), int(p.loadAddressHigh)}
+
+			case *packetPadding:
+				data.Type = "padding"
+				data.Values = []int{p.Length}
+				data.Reset = false
+
+				jp.Data = append(jp.Data, data)
+				data = jsonData{}
+
+			case *packetMarkDataStart:
+				data.Values = []int{int(p.ArgA), int(p.ArgB)}
+				data.Type = p.dataType()
+				dataStartId = i
+
+			case *packetMarkDataEnd:
+				data.Reset = p.Reset
+				var rawData []byte
+
+				switch data.Type {
+				case "pattern":
+					if len(chrData) == 0 {
+						continue
+					}
+					data.File = fmt.Sprintf("%s/chrData_page%02d_%04d.chr", directory, pidx, dataStartId)
+					rawData = chrData
+					chrData = []byte{}
+
+				case "nametable":
+					if len(ntData) == 0 {
+						continue
+					}
+					data.File = fmt.Sprintf("%s/ntData_page%02d_%04d.dat", directory, pidx, dataStartId)
+					rawData = chrData
+					ntData = []byte{}
+
+				case "script":
+					if len(scriptData) == 0 {
+						continue
+					}
+
+					data.File = fmt.Sprintf("%s/scriptData_page%02d_%04d.dat", directory, pidx, dataStartId)
+
+					script, err := DissassembleScript(scriptData)
+					if err != nil {
+						fmt.Println(err)
+					} else {
+						fmt.Printf("Script OK Page %02d @ %04d\n", pidx, dataStartId)
+						err = script.WriteToFile(fmt.Sprintf("%s/script_page%02d_%04d.txt", directory, pidx, dataStartId))
+						if err != nil {
+							return fmt.Errorf("Unable to write data to file: %v", err)
+						}
+					}
+
+					rawData = scriptData
+					scriptData = []byte{}
+				default:
+					jp.Data = append(jp.Data, data)
+					data = jsonData{}
+					continue
+				}
+
+				err = ioutil.WriteFile(data.File, rawData, 0777)
+				if err != nil {
+					return fmt.Errorf("Unable to write data to file [%q]: %v", data.File, err)
+				}
+
+				jp.Data = append(jp.Data, data)
+				data = jsonData{}
+
+			case *packetBulkData:
+				switch data.Type {
+				case "pattern":
+					chrData = append(chrData, p.Data...)
+				case "nametable":
+					ntData = append(ntData, p.Data...)
+				case "script":
+					scriptData = append(scriptData, p.Data...)
+				}
+
+			default:
+				return fmt.Errorf("Encountered an unknown packet: %s page: %d", p.Asm(), pidx)
+			}
+		}
+
+		sbj.Pages = append(sbj.Pages, jp)
+	}
+
+	if sb.Audio == nil {
+		return fmt.Errorf("Missing audio!")
+	}
+
+	err := sb.Audio.WriteToFile(directory + "/audio")
+	if err != nil {
+		return fmt.Errorf("Error writing audio file: %v", err)
+	}
+
+	rawJson, err := json.MarshalIndent(sbj, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(directory+".json", rawJson, 0777)
+}
+
 func (sb StudyBox) String() string {
 	return fmt.Sprintf("%s\n%s", sb.Data.String(), sb.Audio.String())
 }
+
+/* --------------------- */
 
 type TapeData struct {
 	Identifier string // MUST be "STBX"
@@ -37,7 +250,16 @@ type Page struct {
 	FileOffset        int // offset in the file
 	DataOffset        int // offset in the file for the data
 
-	Data []byte
+	Data    []byte
+	Packets []Packet
+}
+
+func (page Page) InfoString() string {
+	str := []string{}
+	for _, p := range page.Packets {
+		str = append(str, fmt.Sprintf("%08X: %s", p.Meta().Start, p.Asm()))
+	}
+	return strings.Join(str, "\n")
 }
 
 func (p Page) String() string {
@@ -71,7 +293,16 @@ func (ta TapeAudio) String() string {
 	return fmt.Sprintf("%s %d %s %d", ta.Identifier, ta.Length, ta.Format, len(ta.Data))
 }
 
-func ReadTape(data []byte) (*StudyBox, error) {
+func (ta *TapeAudio) WriteToFile(basename string) error {
+	ext := "." + strings.ToLower(string(ta.Format))
+	return ioutil.WriteFile(basename+ext, ta.Data, 0777)
+}
+
+func (ta *TapeAudio) ext() string {
+	return "." + strings.ToLower(string(ta.Format))
+}
+
+func readTape(data []byte) (*StudyBox, error) {
 	// check for length and identifier
 	if len(data) < 16 {
 		return nil, fmt.Errorf("Not enough data")
