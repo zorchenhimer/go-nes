@@ -2,32 +2,43 @@ package studybox
 
 import (
 	"fmt"
-	"strings"
+	//"strings"
 )
 
 type packetHeader struct {
 	PageNumber uint8
 	Checksum   uint8
 
-	meta PacketMeta
+	address int
+}
+
+func newPacketHeader(pageNumber uint8) *packetHeader {
+	ph := &packetHeader{PageNumber: pageNumber}
+	ph.Checksum = calcChecksum(ph.RawBytes()[0:7])
+	return ph
 }
 
 func (ph *packetHeader) RawBytes() []byte {
-	return []byte{0xC5, 0x01, 0x01, 0x01, 0x01, byte(ph.PageNumber), byte(ph.PageNumber), 0xC5}
+	return []byte{0xC5, 0x01, 0x01, 0x01, 0x01,
+		byte(ph.PageNumber), byte(ph.PageNumber), ph.Checksum}
 }
 
 func (ph *packetHeader) Asm() string {
 	return fmt.Sprintf("header %d", ph.PageNumber)
 }
 
-func (ph *packetHeader) Meta() PacketMeta {
-	return ph.meta
+func (ph *packetHeader) Address() int {
+	return ph.address
 }
 
 type packetDelay struct {
 	Length int
 
-	meta PacketMeta
+	address int
+}
+
+func newPacketDelay(length int) *packetDelay {
+	return &packetDelay{Length: length}
 }
 
 func (pd *packetDelay) RawBytes() []byte {
@@ -43,40 +54,8 @@ func (pd *packetDelay) Asm() string {
 	return fmt.Sprintf("delay %d", pd.Length)
 }
 
-func (pd *packetDelay) Meta() PacketMeta {
-	return pd.meta
-}
-
-type packetUnknown struct {
-	rawData  []byte
-	notes    string
-	checksum uint8
-
-	meta PacketMeta
-}
-
-func (pu *packetUnknown) Asm() string {
-	data := []string{}
-	i := 2
-	if pu.meta.State == 2 {
-		i = 3
-	}
-	for ; i < pu.meta.Length-1; i++ {
-		data = append(data, fmt.Sprintf("%02X", pu.rawData[i]))
-	}
-	notes := ""
-	if pu.notes != "" {
-		notes = "; " + pu.notes
-	}
-	return fmt.Sprintf("unknown_state%d_type%d %s %s", pu.meta.State, pu.meta.Type, strings.Join(data, " "), notes)
-}
-
-func (pu *packetUnknown) Meta() PacketMeta {
-	return pu.meta
-}
-
-func (pu *packetUnknown) RawBytes() []byte {
-	return pu.rawData
+func (p *packetDelay) Address() int {
+	return p.address
 }
 
 type packetWorkRamLoad struct {
@@ -84,11 +63,13 @@ type packetWorkRamLoad struct {
 	loadAddressHigh uint8
 	checksum        uint8
 
-	meta PacketMeta
+	address int
 }
 
-func (p *packetWorkRamLoad) Meta() PacketMeta {
-	return p.meta
+func newPacketWorkRamLoad(bank, addressHigh uint8) *packetWorkRamLoad {
+	p := &packetWorkRamLoad{bankId: bank, loadAddressHigh: addressHigh}
+	p.checksum = calcChecksum(p.RawBytes()[0:5])
+	return p
 }
 
 func (p *packetWorkRamLoad) Asm() string {
@@ -99,14 +80,36 @@ func (p *packetWorkRamLoad) RawBytes() []byte {
 	return []byte{0xC5, 0x02, 0x02, p.bankId, p.loadAddressHigh, p.checksum}
 }
 
+func (p *packetWorkRamLoad) Address() int {
+	return p.address
+}
+
 type packetBulkData struct {
 	checksum uint8
 	Data     []byte
 
-	meta PacketMeta
+	address int
+}
+
+// Returns a list of packets
+func newBulkDataPackets(raw []byte) []Packet {
+	packets := []Packet{}
+	for i := 0; i < len(raw); i += 128 {
+		l := 128
+		// TODO: veryfy this is actually correct
+		if len(raw) < i+128 {
+			l = len(raw) - i
+		}
+		p := &packetBulkData{Data: raw[i : i+l]}
+		p.checksum = calcChecksum(p.RawBytes()[0 : len(p.Data)-1])
+		packets = append(packets, p)
+	}
+
+	return packets
 }
 
 func (p *packetBulkData) Asm() string {
+	// commented out code prints the full data
 	//data := []string{}
 	//for _, b := range p.Data {
 	//	data = append(data, fmt.Sprintf("$%02X", b))
@@ -122,19 +125,32 @@ func (p *packetBulkData) RawBytes() []byte {
 	return data
 }
 
-func (p *packetBulkData) Meta() PacketMeta { return p.meta }
+func (p *packetBulkData) Address() int {
+	return p.address
+}
 
 type packetMarkDataStart struct {
 	ArgA uint8
 	ArgB uint8
+	Type uint8
 
-	meta     PacketMeta
+	address  int
 	checksum uint8
+}
+
+func newPacketMarkDataStart(dataType packetType, a, b uint8) *packetMarkDataStart {
+	p := &packetMarkDataStart{
+		Type: uint8(dataType),
+		ArgA: a,
+		ArgB: b,
+	}
+	p.checksum = calcChecksum(p.RawBytes()[0:3])
+	return p
 }
 
 func (p *packetMarkDataStart) dataType() string {
 	tstr := "unknown"
-	switch p.meta.Type {
+	switch p.Type {
 	case 2:
 		tstr = "script"
 	case 3:
@@ -149,29 +165,52 @@ func (p *packetMarkDataStart) Asm() string {
 	return fmt.Sprintf("mark_datatype_start %s $%02X $%02X", p.dataType(), p.ArgA, p.ArgB)
 }
 
-func (p *packetMarkDataStart) Meta() PacketMeta { return p.meta }
-
 func (p *packetMarkDataStart) RawBytes() []byte {
-	return []byte{0xC5, uint8(p.meta.Type), uint8(p.meta.Type), p.ArgA, p.ArgB, p.checksum}
+	return []byte{0xC5, uint8(p.Type), uint8(p.Type), p.ArgA, p.ArgB, p.checksum}
+}
+
+func (p *packetMarkDataStart) Address() int {
+	return p.address
 }
 
 type packetMarkDataEnd struct {
-	Arg   uint8
+	//Arg   uint8
 	Reset bool
+	Type  uint8
 
-	meta     PacketMeta
+	address  int
 	checksum uint8
 }
 
-func (p *packetMarkDataEnd) Meta() PacketMeta { return p.meta }
+type packetType uint8
+
+const (
+	packet_Script packetType = 2
+	packet_Nametable
+	packet_Pattern
+	packet_Delay
+)
+
+func newPacketMarkDataEnd(datatype packetType, reset bool) *packetMarkDataEnd {
+	p := &packetMarkDataEnd{
+		Reset: reset,
+		Type:  uint8(datatype),
+	}
+	p.checksum = calcChecksum(p.RawBytes()[0:3])
+	return p
+}
 
 func (p *packetMarkDataEnd) RawBytes() []byte {
-	return []byte{0xC5, uint8(p.meta.Type), p.Arg, p.checksum}
+	arg := uint8(p.Type)
+	if p.Reset {
+		arg |= 0xF0
+	}
+	return []byte{0xC5, 0x00, uint8(p.Type), p.checksum}
 }
 
 func (p *packetMarkDataEnd) Asm() string {
 	var tstr string
-	switch p.Arg & 0x0F {
+	switch p.Type & 0x0F {
 	case 2:
 		tstr = "script"
 	case 3:
@@ -181,7 +220,7 @@ func (p *packetMarkDataEnd) Asm() string {
 	case 5:
 		tstr = "delay"
 	default:
-		tstr = fmt.Sprintf("unknown $%02X", p.Arg)
+		tstr = fmt.Sprintf("unknown $%02X", p.Type)
 	}
 
 	if p.Reset {
@@ -190,12 +229,19 @@ func (p *packetMarkDataEnd) Asm() string {
 	return fmt.Sprintf("mark_datatype_end %s", tstr)
 }
 
-type packetPadding struct {
-	Length int
-	meta   PacketMeta
+func (p *packetMarkDataEnd) Address() int {
+	return p.address
 }
 
-func (p *packetPadding) Meta() PacketMeta { return p.meta }
+type packetPadding struct {
+	Length  int
+	address int
+	raw     []byte
+}
+
+func newPacketPadding(length int) *packetPadding {
+	return &packetPadding{Length: length}
+}
 
 func (p *packetPadding) Asm() string {
 	return fmt.Sprintf("page_padding %d", p.Length)
@@ -207,4 +253,8 @@ func (p *packetPadding) RawBytes() []byte {
 		b = append(b, 0xAA)
 	}
 	return b
+}
+
+func (p *packetPadding) Address() int {
+	return p.address
 }
