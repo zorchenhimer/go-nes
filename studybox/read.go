@@ -53,8 +53,6 @@ func readTape(data []byte) (*StudyBox, error) {
 		if err != nil {
 			return nil, err
 		}
-		page.FileOffset = idx
-		page.DataOffset = idx + 16
 		idx += page.Length + 8
 		sb.Data.Pages = append(sb.Data.Pages, page)
 	}
@@ -75,6 +73,9 @@ func readTape(data []byte) (*StudyBox, error) {
 
 func unpackPage(start int, data []byte) (*Page, error) {
 	tp := &Page{Identifier: "PAGE"}
+
+	tp.FileOffset = start - 4
+	tp.DataOffset = start + 12
 
 	if len(data) < start+12 {
 		return nil, fmt.Errorf("Not enough data in PAGE")
@@ -100,7 +101,7 @@ func unpackPage(start int, data []byte) (*Page, error) {
 	}
 
 	//tp.Data = data[start+12 : start+12+tp.Length-1]
-	tp.decode(data[start+12 : start+12+tp.Length-1])
+	tp.decode(data[start+12 : start+12+tp.Length-8])
 	return tp, nil
 }
 

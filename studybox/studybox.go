@@ -3,8 +3,8 @@ package studybox
 import (
 	"fmt"
 	"io/ioutil"
-	"strings"
 	"path/filepath"
+	"strings"
 )
 
 type StudyBox struct {
@@ -44,19 +44,18 @@ type Page struct {
 func (page Page) InfoString() string {
 	str := []string{}
 	for _, p := range page.Packets {
-		str = append(str, fmt.Sprintf("%08X: %s", p.Meta().Start, p.Asm()))
+		str = append(str, fmt.Sprintf("%08X: %s", p.Address(), p.Asm()))
 	}
 	return strings.Join(str, "\n")
 }
 
 func (p Page) String() string {
-	return fmt.Sprintf("%s @ %08X: %d %d %d %d",
+	return fmt.Sprintf("%s @ %08X: %d %d %d",
 		p.Identifier,
 		p.FileOffset,
 		p.Length,
 		p.AudioOffsetLeadIn,
 		p.AudioOffsetData,
-		//len(p.Data),
 	)
 }
 
@@ -119,15 +118,7 @@ func (ta *TapeAudio) ext() string {
 type Packet interface {
 	RawBytes() []byte
 	Asm() string
-	Meta() PacketMeta // offset in the file to the start of the data packet
-}
-
-type PacketMeta struct {
-	Start  int
-	Data   int
-	Length int // length of whole packet
-	State  int // packet state type. -1 is unknown
-	Type   int // packet type ID. usually the second byte
+	Address() int // Address this packet starts in the .studybox file (if loaded from a .studybox file)
 }
 
 func calcChecksum(data []byte) uint8 {
@@ -139,9 +130,10 @@ func calcChecksum(data []byte) uint8 {
 }
 
 type StudyBoxJson struct {
-	Version uint
-	Pages   []jsonPage
-	Audio   string // filename of the audio
+	Version  uint
+	Filename string // .studybox filename.  defaults to the name of the json file if empty.
+	Audio    string // filename of the audio
+	Pages    []jsonPage
 }
 
 type jsonPage struct {
