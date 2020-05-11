@@ -111,7 +111,7 @@ func importPackets(jdata []jsonData) ([]Packet, error) {
 			}
 
 			if data.File == "" {
-				fmt.Println("[WARN] No script file given in data element %d\n", idx)
+				fmt.Printf("[WARN] No pattern file given in data element %d\n", idx)
 			}
 
 			packets = append(packets, newPacketMarkDataStart(packet_Pattern, uint8(data.Values[0]), uint8(data.Values[1])))

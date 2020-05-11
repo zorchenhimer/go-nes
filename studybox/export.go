@@ -29,73 +29,59 @@ func (sb *StudyBox) Export(directory string) error {
 		file.Close()
 
 		var dataStartId int
-		chrData := []byte{}
-		ntData := []byte{}
-		scriptData := []byte{}
+		jData := jsonData{}
+		rawData := []byte{}
 
-		data := jsonData{}
 		for i, packet := range page.Packets {
 			switch p := packet.(type) {
 			case *packetHeader:
-				data.Type = "header"
-				data.Values = []int{int(p.PageNumber)}
+				jData.Type = "header"
+				jData.Values = []int{int(p.PageNumber)}
 
-				jp.Data = append(jp.Data, data)
-				data = jsonData{}
+				jp.Data = append(jp.Data, jData)
+				jData = jsonData{}
 
 			case *packetDelay:
-				data.Type = "delay"
-				data.Values = []int{p.Length}
+				jData.Type = "delay"
+				jData.Values = []int{p.Length}
 
 			case *packetWorkRamLoad:
-				data.Type = "script"
-				data.Values = []int{int(p.bankId), int(p.loadAddressHigh)}
+				jData.Type = "script"
+				jData.Values = []int{int(p.bankId), int(p.loadAddressHigh)}
+				dataStartId = i
 
 			case *packetPadding:
-				data.Type = "padding"
-				data.Values = []int{p.Length}
-				data.Reset = false
+				jData.Type = "padding"
+				jData.Values = []int{p.Length}
+				jData.Reset = false
 
-				jp.Data = append(jp.Data, data)
-				data = jsonData{}
+				jp.Data = append(jp.Data, jData)
+				jData = jsonData{}
 
 			case *packetMarkDataStart:
-				data.Values = []int{int(p.ArgA), int(p.ArgB)}
-				data.Type = p.dataType()
+				jData.Values = []int{int(p.ArgA), int(p.ArgB)}
+				jData.Type = p.dataType()
 				dataStartId = i
 
 			case *packetMarkDataEnd:
-				data.Reset = p.Reset
-				var rawData []byte
+				jData.Reset = p.Reset
 
-				switch data.Type {
+				if jData.Values == nil || len(jData.Values) == 0 {
+					fmt.Printf("[WARN] No data at page %d, dataStartId: %d\n", pidx, dataStartId)
+					jp.Data = append(jp.Data, jData)
+					jData = jsonData{}
+					continue
+				}
+
+				switch jData.Type {
 				case "pattern":
-					if len(chrData) == 0 {
-						fmt.Printf("[WARN] No pattern data at page %d, dataStartId: %d\n", pidx, dataStartId)
-						continue
-					}
-
-					data.File = fmt.Sprintf("%s/chrData_page%02d_%04d.chr", directory, pidx, dataStartId)
-					rawData = chrData
-					chrData = []byte{}
+					jData.File = fmt.Sprintf("%s/chrData_page%02d_%04d.chr", directory, pidx, dataStartId)
 
 				case "nametable":
-					if len(ntData) == 0 {
-						fmt.Printf("[WARN] No nametable data at page %d, dataStartId: %d\n", pidx, dataStartId)
-						continue
-					}
-
-					data.File = fmt.Sprintf("%s/ntData_page%02d_%04d.dat", directory, pidx, dataStartId)
-					rawData = ntData
-					ntData = []byte{}
+					jData.File = fmt.Sprintf("%s/ntData_page%02d_%04d.dat", directory, pidx, dataStartId)
 
 				case "script":
-					if len(scriptData) == 0 {
-						fmt.Printf("[WARN] No script data at page %d, dataStartId: %d\n", pidx, dataStartId)
-						continue
-					}
-
-					data.File = fmt.Sprintf("%s/scriptData_page%02d_%04d.dat", directory, pidx, dataStartId)
+					jData.File = fmt.Sprintf("%s/scriptData_page%02d_%04d.dat", directory, pidx, dataStartId)
 
 					//script, err := DissassembleScript(scriptData)
 					//if err != nil {
@@ -108,31 +94,29 @@ func (sb *StudyBox) Export(directory string) error {
 					//	}
 					//}
 
-					rawData = scriptData
-					scriptData = []byte{}
-				default:
-					jp.Data = append(jp.Data, data)
-					data = jsonData{}
+				case "delay":
+					jp.Data = append(jp.Data, jData)
+					jData = jsonData{}
 					continue
+
+				default:
+					return fmt.Errorf("[WARN] unknown end data type: %s\n", jData.Type)
 				}
 
-				err = ioutil.WriteFile(data.File, rawData, 0777)
+				err = ioutil.WriteFile(jData.File, rawData, 0777)
 				if err != nil {
-					return fmt.Errorf("Unable to write data to file [%q]: %v", data.File, err)
+					return fmt.Errorf("Unable to write data to file [%q]: %v", jData.File, err)
 				}
 
-				jp.Data = append(jp.Data, data)
-				data = jsonData{}
+				jp.Data = append(jp.Data, jData)
+				jData = jsonData{}
+				rawData = []byte{}
 
 			case *packetBulkData:
-				switch data.Type {
-				case "pattern":
-					chrData = append(chrData, p.Data...)
-				case "nametable":
-					ntData = append(ntData, p.Data...)
-				case "script":
-					scriptData = append(scriptData, p.Data...)
+				if rawData == nil {
+					rawData = []byte{}
 				}
+				rawData = append(rawData, p.Data...)
 
 			default:
 				return fmt.Errorf("Encountered an unknown packet: %s page: %d", p.Asm(), pidx)
