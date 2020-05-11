@@ -41,7 +41,22 @@ type Page struct {
 	state   int
 }
 
-func (page Page) InfoString() string {
+func (p *Page) Debug() string {
+	lines := []string{}
+	for _, packet := range p.Packets {
+		raw := packet.RawBytes()
+		s := []string{}
+		for _, b := range raw {
+			s = append(s, fmt.Sprintf("%02X", b))
+		}
+
+		lines = append(lines, fmt.Sprintf("%s: %s", packet.Name(), strings.Join(s, " ")))
+	}
+
+	return strings.Join(lines, "\n")
+}
+
+func (page *Page) InfoString() string {
 	str := []string{}
 	for _, p := range page.Packets {
 		str = append(str, fmt.Sprintf("%08X: %s", p.Address(), p.Asm()))
@@ -119,6 +134,7 @@ type Packet interface {
 	RawBytes() []byte
 	Asm() string
 	Address() int // Address this packet starts in the .studybox file (if loaded from a .studybox file)
+	Name() string
 }
 
 func calcChecksum(data []byte) uint8 {
@@ -147,4 +163,12 @@ type jsonData struct {
 	Values []int
 	File   string `json:",omitempty"`
 	Reset  bool   `json:",omitempty"`
+}
+
+func byteString(data []byte) string {
+	s := []string{}
+	for _, b := range data {
+		s = append(s, fmt.Sprintf("$%02X", b))
+	}
+	return strings.Join(s, ", ")
 }

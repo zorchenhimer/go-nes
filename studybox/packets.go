@@ -2,7 +2,7 @@ package studybox
 
 import (
 	"fmt"
-	//"strings"
+	"strings"
 )
 
 type packetHeader struct {
@@ -18,13 +18,15 @@ func newPacketHeader(pageNumber uint8) *packetHeader {
 	return ph
 }
 
+func (p *packetHeader) Name() string { return "Header" }
+
 func (ph *packetHeader) RawBytes() []byte {
 	return []byte{0xC5, 0x01, 0x01, 0x01, 0x01,
 		byte(ph.PageNumber), byte(ph.PageNumber), ph.Checksum}
 }
 
 func (ph *packetHeader) Asm() string {
-	return fmt.Sprintf("header %d", ph.PageNumber)
+	return fmt.Sprintf("header %d ; Checksum: %02X", ph.PageNumber, ph.Checksum)
 }
 
 func (ph *packetHeader) Address() int {
@@ -36,6 +38,8 @@ type packetDelay struct {
 
 	address int
 }
+
+func (p *packetDelay) Name() string { return "delay" }
 
 func newPacketDelay(length int) *packetDelay {
 	return &packetDelay{Length: length}
@@ -51,7 +55,9 @@ func (pd *packetDelay) RawBytes() []byte {
 }
 
 func (pd *packetDelay) Asm() string {
-	return fmt.Sprintf("delay %d", pd.Length)
+	checksum := calcChecksum(pd.RawBytes())
+	return fmt.Sprintf("delay %d ; Checksum %02X",
+		pd.Length, checksum)
 }
 
 func (p *packetDelay) Address() int {
@@ -66,6 +72,8 @@ type packetWorkRamLoad struct {
 	address int
 }
 
+func (p *packetWorkRamLoad) Name() string { return "workRamLoad" }
+
 func newPacketWorkRamLoad(bank, addressHigh uint8) *packetWorkRamLoad {
 	p := &packetWorkRamLoad{bankId: bank, loadAddressHigh: addressHigh}
 	p.checksum = calcChecksum(p.RawBytes()[0:5])
@@ -73,7 +81,8 @@ func newPacketWorkRamLoad(bank, addressHigh uint8) *packetWorkRamLoad {
 }
 
 func (p *packetWorkRamLoad) Asm() string {
-	return fmt.Sprintf("work_ram_load $%02X $%02X", p.bankId, p.loadAddressHigh)
+	return fmt.Sprintf("work_ram_load $%02X $%02X ; Checksum %02X",
+		p.bankId, p.loadAddressHigh, p.checksum)
 }
 
 func (p *packetWorkRamLoad) RawBytes() []byte {
@@ -91,6 +100,8 @@ type packetBulkData struct {
 	address int
 }
 
+func (p *packetBulkData) Name() string { return "BulkData" }
+
 // Returns a list of packets
 func newBulkDataPackets(raw []byte) []Packet {
 	packets := []Packet{}
@@ -101,7 +112,8 @@ func newBulkDataPackets(raw []byte) []Packet {
 			l = len(raw) - i
 		}
 		p := &packetBulkData{Data: raw[i : i+l]}
-		p.checksum = calcChecksum(p.RawBytes()[0 : len(p.Data)-1])
+		raw := p.RawBytes()
+		p.checksum = calcChecksum(raw[0 : len(raw)-1])
 		packets = append(packets, p)
 	}
 
@@ -114,8 +126,8 @@ func (p *packetBulkData) Asm() string {
 	//for _, b := range p.Data {
 	//	data = append(data, fmt.Sprintf("$%02X", b))
 	//}
-	//return fmt.Sprintf("data %s", strings.Join(data, ", "))
-	return fmt.Sprintf("data $%02X, [...], $%02X ; Length %d", p.Data[0], p.Data[len(p.Data)-1], len(p.Data))
+	//return fmt.Sprintf("[%08X] data %s ; Length %d Checksum: %02X", p.address, strings.Join(data, ", "), len(p.Data), p.checksum)
+	return fmt.Sprintf("data $%02X, [...], $%02X ; Length %d Checksum: %02X", p.Data[0], p.Data[len(p.Data)-1], len(p.Data), p.checksum)
 }
 
 func (p *packetBulkData) RawBytes() []byte {
@@ -138,13 +150,17 @@ type packetMarkDataStart struct {
 	checksum uint8
 }
 
+func (p *packetMarkDataStart) Name() string { return "DataStart" }
+
 func newPacketMarkDataStart(dataType packetType, a, b uint8) *packetMarkDataStart {
 	p := &packetMarkDataStart{
 		Type: uint8(dataType),
 		ArgA: a,
 		ArgB: b,
 	}
-	p.checksum = calcChecksum(p.RawBytes()[0:3])
+
+	raw := p.RawBytes()
+	p.checksum = calcChecksum(raw[0 : len(raw)-1])
 	return p
 }
 
@@ -162,7 +178,8 @@ func (p *packetMarkDataStart) dataType() string {
 }
 
 func (p *packetMarkDataStart) Asm() string {
-	return fmt.Sprintf("mark_datatype_start %s $%02X $%02X", p.dataType(), p.ArgA, p.ArgB)
+	return fmt.Sprintf("mark_datatype_start %s $%02X $%02X ; Checksum: %02X",
+		p.dataType(), p.ArgA, p.ArgB, p.checksum)
 }
 
 func (p *packetMarkDataStart) RawBytes() []byte {
@@ -182,13 +199,15 @@ type packetMarkDataEnd struct {
 	checksum uint8
 }
 
+func (p *packetMarkDataEnd) Name() string { return "DataEnd" }
+
 type packetType uint8
 
 const (
-	packet_Script packetType = 2
-	packet_Nametable
-	packet_Pattern
-	packet_Delay
+	packet_Script    packetType = 2
+	packet_Nametable packetType = 3
+	packet_Pattern   packetType = 4
+	packet_Delay     packetType = 5
 )
 
 func newPacketMarkDataEnd(datatype packetType, reset bool) *packetMarkDataEnd {
@@ -196,16 +215,17 @@ func newPacketMarkDataEnd(datatype packetType, reset bool) *packetMarkDataEnd {
 		Reset: reset,
 		Type:  uint8(datatype),
 	}
-	p.checksum = calcChecksum(p.RawBytes()[0:3])
+	raw := p.RawBytes()
+	p.checksum = calcChecksum(raw[0 : len(raw)-1])
 	return p
 }
 
 func (p *packetMarkDataEnd) RawBytes() []byte {
 	arg := uint8(p.Type)
 	if p.Reset {
-		arg |= 0xF0
+		arg = arg | 0xF0
 	}
-	return []byte{0xC5, 0x00, uint8(p.Type), p.checksum}
+	return []byte{0xC5, 0x00, arg, p.checksum}
 }
 
 func (p *packetMarkDataEnd) Asm() string {
@@ -226,7 +246,12 @@ func (p *packetMarkDataEnd) Asm() string {
 	if p.Reset {
 		tstr += " reset_state"
 	}
-	return fmt.Sprintf("mark_datatype_end %s", tstr)
+
+	s := []string{}
+	for _, b := range p.RawBytes() {
+		s = append(s, fmt.Sprintf("%02X", b))
+	}
+	return fmt.Sprintf("mark_datatype_end %s ; %s Checksum: %02X", tstr, strings.Join(s, " "), p.checksum)
 }
 
 func (p *packetMarkDataEnd) Address() int {
@@ -238,6 +263,8 @@ type packetPadding struct {
 	address int
 	raw     []byte
 }
+
+func (p *packetPadding) Name() string { return "Padding" }
 
 func newPacketPadding(length int) *packetPadding {
 	return &packetPadding{Length: length}

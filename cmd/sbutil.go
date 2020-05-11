@@ -63,8 +63,24 @@ func main() {
 				continue
 			}
 
+			outDir := filepath.Base(file)
+			outDir = strings.ReplaceAll(outDir, ".json", "_output")
+
+			err = os.MkdirAll(outDir, 0777)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			err = sb.Export(outDir)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
 			// TODO: put this in the json file?
-			err = sb.Write("output.studybox")
+
+			err = sb.Write(outDir + ".studybox")
 			if err != nil {
 				fmt.Println(err)
 				continue

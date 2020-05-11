@@ -101,7 +101,10 @@ func unpackPage(start int, data []byte) (*Page, error) {
 	}
 
 	//tp.Data = data[start+12 : start+12+tp.Length-1]
-	tp.decode(data[start+12 : start+12+tp.Length-8])
+	err := tp.decode(data[start+12 : start+12+tp.Length-8])
+	if err != nil {
+		return nil, fmt.Errorf("Error decoding: %v", err)
+	}
 	return tp, nil
 }
 
