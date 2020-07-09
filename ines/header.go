@@ -174,6 +174,12 @@ func ParseHeader(raw []byte) (*Header, error) {
 
 	header.Nes2 = (flagSeven & 0x0C) == 0x08
 
+	// Read the MSB size bytes
+	if header.Nes2 {
+		header.PrgSize = uint(uint16(raw[4])|((uint16(raw[9])&0x0F)<<8)) * 16 * 1024
+		header.ChrSize = uint(uint16(raw[5])|((uint16(raw[9])&0xF0)<<8)) * 8 * 1024
+	}
+
 	uppermap := flagSeven & 0xF0
 
 	lowermap := flagSix & 0xF0
