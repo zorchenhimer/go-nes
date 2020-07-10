@@ -158,17 +158,17 @@ func (pt *PatternTable) Asm(firstPlane bool) string {
 	}
 
 	// Only write tile IDs if duplicates have been removed
-	if pt.ReducedIds != nil {
-		line := []string{}
-		for i := 0; i < len(pt.ReducedIds); i++ {
-			line = append(line, fmt.Sprintf("$%02X", pt.ReducedIds[i]))
-			if i%32 == 0 && i != 0 {
-				fmt.Fprintf(&idsStr, ".byte %s\n", strings.Join(line, ", "))
-				line = []string{}
-			}
-		}
-		fmt.Fprintf(&idsStr, ".byte %s\n", strings.Join(line, ", "))
-	}
+	//if pt.ReducedIds != nil {
+	//	line := []string{}
+	//	for i := 0; i < len(pt.ReducedIds); i++ {
+	//		line = append(line, fmt.Sprintf("$%02X", pt.ReducedIds[i]))
+	//		if i%32 == 0 && i != 0 {
+	//			fmt.Fprintf(&idsStr, ".byte %s\n", strings.Join(line, ", "))
+	//			line = []string{}
+	//		}
+	//	}
+	//	fmt.Fprintf(&idsStr, ".byte %s\n", strings.Join(line, ", "))
+	//}
 
 	if idsStr.Len() > 0 {
 		return chrStr.String() + "\n" + idsStr.String()

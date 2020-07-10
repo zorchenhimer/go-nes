@@ -4,7 +4,7 @@ ifeq ($(OS),Windows_NT)
 EXT=.exe
 endif
 
-UTILS := chrutil romutil
+UTILS := chrutil romutil fontutil
 EXES := $(addsuffix .exe,$(addprefix bin/,$(UTILS)))
 SRCS := $(addsuffix .go,$(addprefix cmd/,$(UTILS)))
 
