@@ -56,6 +56,8 @@ func main() {
 
 	cp.AddOption("write-ids", "", true, "",
 		"Write tile IDs to a file to reconstruct an image.  Only available with --remove-duplicates or --remove-empty.")
+	cp.AddOption("nt-ids", "", true, "",
+		"Write tile IDs to a file to reconstruct an image.  Similar to --wirte-ids but different.  Only available with --remove-duplicates or --remove-empty.")
 
 	err := cp.Parse()
 	if err != nil {
@@ -136,6 +138,34 @@ func main() {
 		} else if rmEmpty {
 			pt.RemoveEmpty()
 		}
+
+		if idfile, err := cp.GetOption("nt-ids"); idfile != "" && err == nil {
+			if !(cp.GetBoolOption("remove-empty") || cp.GetBoolOption("remove-duplicates")) {
+				fmt.Println("--write-ids cannot be used without the --remove-empty or --remove-duplicates option.  Ignoring.")
+				goto SKIP_NT_IDS // i still feel dirty
+			}
+			if len(pt.ReducedIds) > 512 {
+				fmt.Println("More than 512 tiles! Aborting.")
+				os.Exit(1)
+			}
+
+			f, err := os.Create(idfile)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			defer f.Close()
+
+			fmt.Fprintf(f, ": .word %d\n", len(pt.ReducedIds))
+			table := []string{}
+			for _, val := range pt.ReducedIds {
+				table = append(table, fmt.Sprintf("%d", val))
+			}
+			fmt.Fprintf(f, ": .byte %s\n", strings.Join(table, ","))
+		} else if err != nil {
+			fmt.Printf("nt-ids error: %v\n", err)
+		}
+	SKIP_NT_IDS:
 
 		// Use a PatternTable as the intermediate format, not the
 		// files's destination format.
