@@ -97,9 +97,9 @@ OUTER:
 			continue
 		}
 
-		for id, t := range tiles {
+		for _, t := range tiles {
 			if t.IsIdentical(tile) {
-				pt.ReducedIds = append(pt.ReducedIds, id)
+				pt.ReducedIds = append(pt.ReducedIds, t.OrigId)
 				continue OUTER
 			}
 		}
