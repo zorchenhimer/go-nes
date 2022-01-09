@@ -155,12 +155,12 @@ func (t *Tile) Asm(half, binary bool) string {
 	}
 
 	for _, b := range plane1 {
-		p1 = append(p1, fmt.Sprintf(formatString, b))
+		p1 = append(p1, fmt.Sprintf(formatString+"; $%02X", b, b))
 	}
 
 	if !half {
 		for _, b := range plane2 {
-			p2 = append(p2, fmt.Sprintf(formatString, b))
+			p2 = append(p2, fmt.Sprintf(formatString+"; $%02X", b, b))
 		}
 	}
 
