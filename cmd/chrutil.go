@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"image/png"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -235,7 +234,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = ioutil.WriteFile(name, data, 0777)
+		err = os.WriteFile(name, data, 0777)
 		if err != nil {
 			fmt.Printf("Error writing file %q: %v\n", name, err)
 			os.Exit(1)

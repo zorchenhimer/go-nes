@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,7 +60,7 @@ func main() {
 }
 
 func cmdPack(dirName, romName string) {
-	headerRaw, err := ioutil.ReadFile(dirName + "header.json")
+	headerRaw, err := os.ReadFile(dirName + "header.json")
 	if err != nil {
 		fmt.Printf("Unable to read header.json file: %v\n", err)
 		os.Exit(1)
@@ -73,7 +72,7 @@ func cmdPack(dirName, romName string) {
 		os.Exit(1)
 	}
 
-	prgRaw, err := ioutil.ReadFile(dirName + "prg.dat")
+	prgRaw, err := os.ReadFile(dirName + "prg.dat")
 	if err != nil {
 		fmt.Printf("Unable to read prg.dat file: %v\n", err)
 		os.Exit(1)
@@ -83,7 +82,7 @@ func cmdPack(dirName, romName string) {
 	for i := 0; i < 16; i++ {
 		chrfile := fmt.Sprintf("bank_%02d.chr", i)
 		fmt.Println(chrfile)
-		chrRaw, err := ioutil.ReadFile(dirName + chrfile)
+		chrRaw, err := os.ReadFile(dirName + chrfile)
 		if err != nil {
 			fmt.Printf("Unable to read %s file: %v\n", chrfile, err)
 			os.Exit(1)
@@ -167,13 +166,13 @@ func cmdUnpack(args ...string) error {
 				raw = rom.PrgRom[start:end]
 			}
 
-			err = ioutil.WriteFile(fmt.Sprintf("%sprg_%d.dat", OutDirectory, i), raw, 0777)
+			err = os.WriteFile(fmt.Sprintf("%sprg_%d.dat", OutDirectory, i), raw, 0777)
 			if err != nil {
 				return fmt.Errorf("Error writing PRG data: %v", err)
 			}
 		}
 	} else {
-		err = ioutil.WriteFile(OutDirectory+"prg.dat", rom.PrgRom, 0777)
+		err = os.WriteFile(OutDirectory+"prg.dat", rom.PrgRom, 0777)
 		if err != nil {
 			return fmt.Errorf("Error writing PRG data: %v", err)
 		}
@@ -192,13 +191,13 @@ func cmdUnpack(args ...string) error {
 					raw = rom.ChrRom[start:end]
 				}
 
-				err = ioutil.WriteFile(fmt.Sprintf("%schr_%d.dat", OutDirectory, i), raw, 0777)
+				err = os.WriteFile(fmt.Sprintf("%schr_%d.dat", OutDirectory, i), raw, 0777)
 				if err != nil {
 					return fmt.Errorf("Error writing CHR data: %v", err)
 				}
 			}
 		} else {
-			err = ioutil.WriteFile(OutDirectory+"chr.dat", rom.ChrRom, 0777)
+			err = os.WriteFile(OutDirectory+"chr.dat", rom.ChrRom, 0777)
 			if err != nil {
 				return fmt.Errorf("Error writing CHR data: %v", err)
 			}
@@ -206,18 +205,11 @@ func cmdUnpack(args ...string) error {
 	}
 
 	if rom.Header.MiscSize > 0 {
-		err = ioutil.WriteFile(OutDirectory+"misc.dat", rom.MiscRom, 0777)
+		err = os.WriteFile(OutDirectory+"misc.dat", rom.MiscRom, 0777)
 		if err != nil {
 			return fmt.Errorf("Error writing MISC data: %v", err)
 		}
 	}
-
-	//cdl, _ := ioutil.ReadFile(filename[:len(filename) - len(filepath.Ext(filename)] + ".cdl")
-	//if cdl != nil {
-	//	prg_cdl = cdl[:rom.Header.PrgSize]
-	//	//chr_cdl
-	//	if
-	//}
 
 	return nil
 }

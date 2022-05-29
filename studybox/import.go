@@ -3,7 +3,7 @@ package studybox
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"strings"
 )
 
@@ -11,7 +11,7 @@ func Import(filename string) (*StudyBox, error) {
 	if !strings.HasSuffix(strings.ToLower(filename), ".json") {
 		return nil, fmt.Errorf("Can only import .json files")
 	}
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func importPackets(jdata []jsonData) ([]Packet, error) {
 
 			packets = append(packets, newPacketWorkRamLoad(uint8(data.Values[0]), uint8(data.Values[1])))
 			if data.File != "" {
-				raw, err := ioutil.ReadFile(data.File)
+				raw, err := os.ReadFile(data.File)
 				if err != nil {
 					return nil, fmt.Errorf("Error reading script data file: %v", err)
 				}
@@ -97,7 +97,7 @@ func importPackets(jdata []jsonData) ([]Packet, error) {
 
 			packets = append(packets, newPacketMarkDataStart(packet_Nametable, uint8(data.Values[0]), uint8(data.Values[1])))
 			if data.File != "" {
-				raw, err := ioutil.ReadFile(data.File)
+				raw, err := os.ReadFile(data.File)
 				if err != nil {
 					return nil, fmt.Errorf("Error reading nametable data file: %v", err)
 				}
@@ -116,7 +116,7 @@ func importPackets(jdata []jsonData) ([]Packet, error) {
 
 			packets = append(packets, newPacketMarkDataStart(packet_Pattern, uint8(data.Values[0]), uint8(data.Values[1])))
 			if data.File != "" {
-				raw, err := ioutil.ReadFile(data.File)
+				raw, err := os.ReadFile(data.File)
 				if err != nil {
 					return nil, fmt.Errorf("Error reading pattern data file: %v", err)
 				}

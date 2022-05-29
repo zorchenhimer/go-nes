@@ -4,13 +4,13 @@ import (
 	"encoding/binary"
 	"fmt"
 	"image"
-	"io/ioutil"
+	"os"
 )
 
 func LoadBitmap(filename string) (*PatternTable, error) {
 
 	// Read input file
-	rawBmp, err := ioutil.ReadFile(filename)
+	rawBmp, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open input bitmap file: %s", err)
 	}
