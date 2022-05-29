@@ -43,7 +43,7 @@ func main() {
 				continue
 			}
 
-			sb, err := studybox.Read(file)
+			sb, err := studybox.ReadFile(file)
 			if err != nil {
 				fmt.Println(err)
 				continue

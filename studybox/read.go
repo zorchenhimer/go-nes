@@ -4,12 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"os"
 )
 
-// Read opens and decodes a `.studybox` file.
-func Read(filename string) (*StudyBox, error) {
-	raw, err := ioutil.ReadFile(filename)
+func Read(reader io.Reader) (*StudyBox, error) {
+	raw, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -20,6 +20,17 @@ func Read(filename string) (*StudyBox, error) {
 	}
 
 	return sb, nil
+}
+
+// Read opens and decodes a `.studybox` file.
+func ReadFile(filename string) (*StudyBox, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return Read(file)
 }
 
 func readTape(data []byte) (*StudyBox, error) {
