@@ -3,7 +3,7 @@ package ines
 import (
 	"fmt"
 	"hash/crc32"
-	"io/ioutil"
+	"os"
 )
 
 type Crc32 uint32
@@ -44,12 +44,12 @@ func (r *NesRom) WriteFile(filename string) error {
 	data = append(data, r.PrgRom...)
 	data = append(data, r.ChrRom...)
 
-	return ioutil.WriteFile(filename, data, 0777)
+	return os.WriteFile(filename, data, 0777)
 }
 
 // ReadRom() opens the given file and attempts to load it as an iNES ROM.
 func ReadRom(filename string) (*NesRom, error) {
-	rawrom, err := ioutil.ReadFile(filename)
+	rawrom, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading ROM file: %v", err)
 	}

@@ -3,7 +3,6 @@ package studybox
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
@@ -103,7 +102,7 @@ func (sb *StudyBox) Export(directory string) error {
 					return fmt.Errorf("[WARN] unknown end data type: %s\n", jData.Type)
 				}
 
-				err = ioutil.WriteFile(jData.File, rawData, 0777)
+				err = os.WriteFile(jData.File, rawData, 0777)
 				if err != nil {
 					return fmt.Errorf("Unable to write data to file [%q]: %v", jData.File, err)
 				}
@@ -140,5 +139,5 @@ func (sb *StudyBox) Export(directory string) error {
 		return err
 	}
 
-	return ioutil.WriteFile(directory+".json", rawJson, 0777)
+	return os.WriteFile(directory+".json", rawJson, 0777)
 }

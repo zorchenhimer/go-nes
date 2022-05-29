@@ -2,7 +2,7 @@ package image
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 /*
@@ -43,7 +43,7 @@ func (t Tile) ToChr() []byte {
 }
 
 func LoadCHR(filename string) (*PatternTable, error) {
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to open CHR file for reading: %v", err)
 	}

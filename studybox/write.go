@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 func (sb *StudyBox) Write(filename string) error {
@@ -18,7 +18,7 @@ func (sb *StudyBox) Write(filename string) error {
 
 	fmt.Println("Writing to " + filename)
 
-	return ioutil.WriteFile(filename, raw, 0777)
+	return os.WriteFile(filename, raw, 0777)
 }
 
 func (sb *StudyBox) rawBytes() ([]byte, error) {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 )
 
 type ConsoleType uint8
@@ -96,7 +96,7 @@ func (h Header) WriteMeta(name string) error {
 		return fmt.Errorf("Unable to marshal header data: %v", err)
 	}
 
-	err = ioutil.WriteFile(name, raw, 0777)
+	err = os.WriteFile(name, raw, 0777)
 	if err != nil {
 		return fmt.Errorf("Unable to write file: %v", err)
 	}
