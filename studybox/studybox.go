@@ -2,7 +2,7 @@ package studybox
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -108,7 +108,7 @@ func readAudio(filename string) (*TapeAudio, error) {
 		return nil, fmt.Errorf("Unsupported audio format: %s", filepath.Ext(filename))
 	}
 
-	raw, err := ioutil.ReadFile(filename)
+	raw, err := os.ReadFile(filename)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (ta TapeAudio) String() string {
 
 func (ta *TapeAudio) WriteToFile(basename string) error {
 	ext := "." + strings.ToLower(string(ta.Format))
-	return ioutil.WriteFile(basename+ext, ta.Data, 0777)
+	return os.WriteFile(basename+ext, ta.Data, 0777)
 }
 
 func (ta *TapeAudio) ext() string {
