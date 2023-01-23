@@ -35,12 +35,23 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 		return nil, fmt.Errorf("Image height must be a multiple of 8")
 	}
 
-	if imageHeader.BitDepth != 8 {
+	data := rawBmp[fileHeader.Offset:len(rawBmp)]
+	// Expand to 8-bit
+	if imageHeader.BitDepth == 4 {
+		fmt.Println("Bitdepth is 4, converting to 8")
+
+		fourbit := []byte{}
+		for _, d := range data {
+			a, b := (d & 0xF0) >> 4, (d & 0x0F)
+			fourbit = append(fourbit, []byte{a, b}...)
+		}
+
+		data = fourbit
+	} else if imageHeader.BitDepth != 8 {
 		return nil, fmt.Errorf("Image has incorrect bit depth of %d", imageHeader.BitDepth)
 	}
 
 	rect := image.Rect(0, 0, imageHeader.Width, imageHeader.Height)
-	data := rawBmp[fileHeader.Offset:len(rawBmp)]
 
 	// Invert row order. They're stored top to bottom in BMP.
 	uprightRows := []byte{}
