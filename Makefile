@@ -27,3 +27,6 @@ bin/romutil$(EXT): cmd/romutil.go ines/*.go
 
 bin/sbutil$(EXT): cmd/sbutil.go studybox/*.go
 	go build -o $@ $<
+
+bin/fontutil$(EXT): cmd/fontutil.go image/*.go
+	go build -o $@ $<
