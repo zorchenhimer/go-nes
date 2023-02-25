@@ -16,8 +16,7 @@ fmt:
 	gofmt -w .
 
 clean:
-	rm -f cmd/*.exe
-	rm -f bin/*.*
+	-rm -f cmd/*.exe bin/*.* bin/*
 
 bin/chrutil$(EXT): cmd/chrutil.go common/*.go image/*.go
 	go build -o $@ $<
