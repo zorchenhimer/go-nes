@@ -7,6 +7,7 @@ import (
 
 /*
 CHR
+
 	each byte is a single row of pixels
 	each tile is 16 bytes long
 	first 8 bytes are the first half of the plane	(color 0 & 1)

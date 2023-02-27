@@ -10,7 +10,7 @@ import (
 // Data is a list of palette indexes.  One ID per pixel.  A single tile is
 // always 8x8 pixels.  Larger meta tiles (eg, 8*16) will be made up of multiple
 // tiles of 64 total pixels.
-//type Tile [64]byte
+// type Tile [64]byte
 type Tile struct {
 	image.Paletted
 	OrigId    int

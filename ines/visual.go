@@ -11,8 +11,8 @@ import (
 
 // For visualizing the code/data breakdown in a rom
 
-//type PRGUsage byte
-//type CHRUsage byte
+// type PRGUsage byte
+// type CHRUsage byte
 const (
 	// PRG ROM
 	UP_CODE    byte = 0x01

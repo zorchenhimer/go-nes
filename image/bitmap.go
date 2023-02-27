@@ -42,7 +42,7 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 
 		fourbit := []byte{}
 		for _, d := range data {
-			a, b := (d & 0xF0) >> 4, (d & 0x0F)
+			a, b := (d&0xF0)>>4, (d & 0x0F)
 			fourbit = append(fourbit, []byte{a, b}...)
 		}
 
