@@ -60,14 +60,18 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 		rawRow := data[row*rect.Max.X : row*rect.Max.X+rect.Max.X]
 
 		// normalize each pixel's palette index
+		// don't touch pixel data.  We need to figure out palette stuff later.
 		for _, b := range rawRow {
-			uprightRows = append(uprightRows, byte(int(b)%4))
+			//uprightRows = append(uprightRows, byte(int(b)%4))
+			uprightRows = append(uprightRows, b)
 		}
 	}
 
 	// Cut out the 8x8 tiles
 	tileID := 0
 	table := NewPatternTable()
+	table.SourceWidth = imageHeader.Width
+	table.SourceHeight = imageHeader.Height
 
 	tilesPerRow := rect.Max.X / 8
 
@@ -77,8 +81,11 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 		// tile row * tile row length in pixels + offset in tile
 		startOffset := (tileID/tilesPerRow)*(64*tilesPerRow) + (tileID%tilesPerRow)*8
 
-		var nt *Tile
-		nt = NewTile(tileID)
+		// Buffer the pixels in an array first so we can figure out palette
+		// data later.
+		// TODO: consolidate these two loops.  Last time i tried it broke
+		// *everything* all at once (wrong IDs & no data in CHR).
+		tileRaw := [64]byte{}
 		for y := 0; y < 8; y++ {
 			tileY := y
 
@@ -89,9 +96,30 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 
 			// Get the pixels for the row.
 			for x := 0; x < 8; x++ {
-				nt.Pix[x+(8*tileY)] = uprightRows[startOffset+x+rect.Max.X*y]
+				//nt.Pix[x+(8*tileY)] = uprightRows[startOffset+x+rect.Max.X*y]
+				tileRaw[x+(8*tileY)] = uprightRows[startOffset+x+rect.Max.X*y]
 			}
 		}
+
+		pal := -1
+		nt := NewTile(tileID)
+		// Figure out the palette for the tile and return an error if we find
+		// more than one.
+		for i, b := range tileRaw {
+			// Palette ID (out of 4 possible palettes)
+			v := int((b / 4) % 4)
+			if pal == -1 {
+				pal = v
+			}
+
+			if v != pal {
+				return nil, fmt.Errorf("Tile contains more than one palette (%d)", tileID)
+			}
+
+			// Value inside palette.  This was originally done above.
+			nt.Pix[i] = (b % 4)
+		}
+		nt.PaletteId = pal
 
 		//tiles = append(tiles, nt)
 		table.AddTile(nt)

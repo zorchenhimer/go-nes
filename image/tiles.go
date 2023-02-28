@@ -15,6 +15,7 @@ type Tile struct {
 	image.Paletted
 	OrigId    int
 	charWidth int
+	PaletteId int // 0-3
 }
 
 func NewTile(id int) *Tile {

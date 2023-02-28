@@ -29,3 +29,6 @@ bin/sbutil$(EXT): cmd/sbutil.go studybox/*.go
 
 bin/fontutil$(EXT): cmd/fontutil.go image/*.go
 	go build -o $@ $<
+
+bin/metatiles$(EXT): cmd/metatiles.go image/*.go
+	go build -o $@ $<
