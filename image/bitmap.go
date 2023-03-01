@@ -105,6 +105,7 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 		nt := NewTile(tileID)
 		// Figure out the palette for the tile and return an error if we find
 		// more than one.
+		warnPrinted := false
 		for i, b := range tileRaw {
 			// Palette ID (out of 4 possible palettes)
 			v := int((b / 4) % 4)
@@ -112,8 +113,10 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 				pal = v
 			}
 
-			if v != pal {
-				return nil, fmt.Errorf("Tile contains more than one palette (%d)", tileID)
+			if v != pal && !warnPrinted {
+				//return nil, fmt.Errorf("Tile contains more than one palette (%d)", tileID)
+				fmt.Printf("[WARNING] Tile contains more than one palette (%d)\n", tileID)
+				warnPrinted = true
 			}
 
 			// Value inside palette.  This was originally done above.
