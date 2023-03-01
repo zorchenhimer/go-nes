@@ -143,8 +143,8 @@ func main() {
 				fmt.Println("--write-ids cannot be used without the --remove-empty or --remove-duplicates option.  Ignoring.")
 				goto SKIP_NT_IDS // i still feel dirty
 			}
-			if len(pt.ReducedIds) > 512 {
-				fmt.Println("More than 512 tiles! Aborting.")
+			if len(pt.Patterns) > 512 {
+				fmt.Printf("More than 512 tiles (%d)! Aborting.\n", len(pt.Patterns))
 				os.Exit(1)
 			}
 
@@ -217,8 +217,8 @@ func main() {
 				fmt.Println("--write-ids cannot be used without the --remove-empty or --remove-duplicates option.  Ignoring.")
 				goto SKIP_WRITE_IDS // i feel dirty
 			}
-			if len(pt.ReducedIds) > 512 {
-				fmt.Println("More than 512 tiles! Aborting.")
+			if len(pt.Patterns) > 512 {
+				fmt.Printf("More than 512 tiles (%d)! Aborting.\n", len(pt.Patterns))
 				os.Exit(1)
 			}
 
