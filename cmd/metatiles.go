@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 	"strconv"
+	"strings"
 
 	"github.com/alexflint/go-arg"
 	nesimg "github.com/zorchenhimer/go-nes/image"
@@ -17,6 +17,7 @@ type options struct {
 	OutputData string `arg:"positional,required" help:"Output tile metadata assembly code"`
 	TileSize   string `arg:"-s,--tile-size" default:"2" help:"Meta tile size in number of CHR tiles. Format is either a single number for a square or WxH for a rectangle (eg 1x2 or 2).  The source file must be the proper dimensions for the given tile size."`
 	Count      int    `arg:"-c,--count" default:"0" help:"Number of meta tiles to process.  A value of zero processes all available given the image and metatile dimensions."`
+	Offset     int    `arg:"-o,--offset" default"0" help:"Offset to start the tile IDs"`
 	sizeWidth  int
 	sizeHeight int
 }
@@ -36,13 +37,13 @@ func (mt MetaTile) String() string {
 	return fmt.Sprintf("[%s]", strings.Join(s, " "))
 }
 
-func (mt MetaTile) Asm() string {
+func (mt MetaTile) Asm(offset int) string {
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf(":   .byte %d, %d\n", mt.Width, mt.Height))
 	sb.WriteString(fmt.Sprintf("    .byte %d, %d\n", mt.Palette, mt.Width*mt.Height))
 	s := []string{}
 	for _, i := range mt.Tiles {
-		s = append(s, strconv.Itoa(i))
+		s = append(s, strconv.Itoa(i+offset))
 	}
 	sb.WriteString(fmt.Sprintf("    .byte %s\n", strings.Join(s, ", ")))
 	return sb.String()
@@ -98,13 +99,13 @@ func run(opts *options) error {
 	}
 	pt.RemoveDuplicates(false)
 
-	tilesWidth := pt.SourceWidth/8
-	if tilesWidth % opts.sizeWidth != 0 {
+	tilesWidth := pt.SourceWidth / 8
+	if tilesWidth%opts.sizeWidth != 0 {
 		return fmt.Errorf("Source image incorrect width for metatile size")
 	}
 
-	tilesHeight := pt.SourceHeight/8
-	if tilesHeight % opts.sizeHeight != 0 {
+	tilesHeight := pt.SourceHeight / 8
+	if tilesHeight%opts.sizeHeight != 0 {
 		return fmt.Errorf("Source image incorrect width for metatile size")
 	}
 
@@ -125,7 +126,7 @@ func run(opts *options) error {
 	metaTiles := []MetaTile{}
 	count := 0
 
-	OUTER:
+OUTER:
 	for y := 0; y < mtHeight; y++ {
 		for x := 0; x < mtWidth; x++ {
 			count++
@@ -194,7 +195,7 @@ func run(opts *options) error {
 	}
 
 	for _, mt := range metaTiles {
-		_, err = fmt.Fprintln(asmOut, mt.Asm())
+		_, err = fmt.Fprintln(asmOut, mt.Asm(opts.Offset))
 		if err != nil {
 			return fmt.Errorf("Error writing to output file: %w", err)
 		}
