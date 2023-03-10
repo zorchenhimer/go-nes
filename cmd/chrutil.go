@@ -264,7 +264,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		err = os.WriteFile(name, data, 0777)
+		err = os.WriteFile(name, data, 0644)
 		if err != nil {
 			fmt.Printf("Error writing file %q: %v\n", name, err)
 			os.Exit(1)
