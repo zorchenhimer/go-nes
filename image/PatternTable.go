@@ -20,9 +20,9 @@ const (
 // 1k, 2k, 4k, or 8k sizes; or 64, 128, 256, or 512 tiles; or 128x32, 128x64,
 // 128x128, or 128x256 pixels; or 4, 8, 16, or 32 rows of tiles.
 type PatternTable struct {
-	Patterns     []*Tile
-	Layout       Arrangement
-	ReducedIds   []int
+	Patterns   []*Tile
+	Layout     Arrangement
+	ReducedIds []int
 
 	// Dimensions are in pixels
 	SourceWidth  int
