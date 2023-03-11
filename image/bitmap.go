@@ -38,7 +38,7 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 	data := rawBmp[fileHeader.Offset:len(rawBmp)]
 	// Expand to 8-bit
 	if imageHeader.BitDepth == 4 {
-		fmt.Println("Bitdepth is 4, converting to 8")
+		//fmt.Println("Bitdepth is 4, converting to 8")
 
 		fourbit := []byte{}
 		for _, d := range data {
