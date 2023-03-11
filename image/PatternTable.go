@@ -27,6 +27,9 @@ type PatternTable struct {
 	// Dimensions are in pixels
 	SourceWidth  int
 	SourceHeight int
+
+	// Width in tiles
+	TableWidth int
 }
 
 //type TableSize int
@@ -52,7 +55,8 @@ type PatternTable struct {
 
 func NewPatternTable() *PatternTable {
 	return &PatternTable{
-		Patterns: []*Tile{},
+		Patterns:   []*Tile{},
+		TableWidth: 16,
 	}
 }
 
@@ -188,11 +192,11 @@ func (pt *PatternTable) ColorModel() color.Model {
 
 func (pt *PatternTable) Bounds() image.Rectangle {
 	// TODO
-	width := 128
-	if len(pt.Patterns) < 16 {
+	width := pt.TableWidth * 8
+	if len(pt.Patterns) < pt.TableWidth {
 		width = len(pt.Patterns) * 8
 	}
-	height := int(math.Ceil(float64(len(pt.Patterns))/16.0)) * 8
+	height := int(math.Ceil(float64(len(pt.Patterns))/float64(pt.TableWidth))) * 8
 	return image.Rect(0, 0, width, height)
 }
 

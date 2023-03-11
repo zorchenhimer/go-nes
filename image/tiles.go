@@ -16,6 +16,7 @@ type Tile struct {
 	OrigId    int
 	charWidth int
 	PaletteId int // 0-3
+	bgIndex   uint8
 }
 
 func NewTile(id int) *Tile {
@@ -29,6 +30,17 @@ func NewTile(id int) *Tile {
 		OrigId:    id,
 		charWidth: -1,
 	}
+}
+
+func (t *Tile) FillBackground(index uint8) {
+	index = index % 4
+	for i := 0; i < 64; i++ {
+		t.Pix[i] = index
+	}
+}
+
+func (t *Tile) SetBackgroundIndex(index uint8) {
+	t.bgIndex = index
 }
 
 func (thisTile *Tile) IsIdentical(otherTile *Tile) bool {
@@ -93,19 +105,19 @@ func (t *Tile) CharacterWidth() int {
 		return t.charWidth
 	}
 
+LOOP:
 	for col := 7; col > -1; col-- {
 		for row := 0; row < 8; row++ {
 			pix := t.Paletted.ColorIndexAt(col, row)
 			//fmt.Printf("%s\n(%d,%d)\n%d\n\n", t.ASCII(), row, col, pix);
-			if pix > 0 {
+			if pix != t.bgIndex {
 				t.charWidth = col + 1
-				return t.charWidth
+				break LOOP
 			}
 		}
 	}
 
-	t.charWidth = 0
-	return 0
+	return t.charWidth
 }
 
 func (t *Tile) getChrBin() ([]byte, []byte) {
