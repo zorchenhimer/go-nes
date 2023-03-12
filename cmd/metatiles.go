@@ -18,6 +18,7 @@ type options struct {
 	TileSize   string `arg:"-s,--tile-size" default:"2" help:"Meta tile size in number of CHR tiles. Format is either a single number for a square or WxH for a rectangle (eg 1x2 or 2).  The source file must be the proper dimensions for the given tile size."`
 	Count      int    `arg:"-c,--count" default:"0" help:"Number of meta tiles to process.  A value of zero processes all available given the image and metatile dimensions."`
 	Offset     int    `arg:"-o,--offset" default"0" help:"Offset to start the tile IDs"`
+	PadTiles   int    `arg:"-p,--pad" default:"0" help:"Pad the output to contain at least this many tiles"`
 	sizeWidth  int
 	sizeHeight int
 }
@@ -107,6 +108,10 @@ func run(opts *options) error {
 	tilesHeight := pt.SourceHeight / 8
 	if tilesHeight%opts.sizeHeight != 0 {
 		return fmt.Errorf("Source image incorrect width for metatile size")
+	}
+
+	if opts.PadTiles > 0 {
+		pt.PadTileCount(opts.PadTiles)
 	}
 
 	chr := pt.Chr(false)
