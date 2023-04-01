@@ -4,40 +4,40 @@ A library for working with NES CHR data and ROM files.
 
 ## chrutil
 
-Universal utility to work with CHR files and related data.
+Utility to work with CHR files and related data.
 
 - Converting bitmaps to the CHR format
-- Converting CHR files to bitmap (or other formats?)
+- Converting CHR files to PNG
 - Selecting which tiles to export (Range or individual IDs)
-- Tile de-duplication
+- Tile de-duplication (with ID mappings exported)
 - Multiple input bitmaps into a single CHR
-- Multiple inputs to multiple outputs?
+- Multiple inputs to multiple outputs
 - 8x16 sprite mode (per-input file)
 - Target start ID for given input
 - Allow CHR files as input for concatenation
 - Output as binary CHR file or assembly source
-- Convert bitmap fonts to CHR
-- Automatic tile de-duplication
 - Destination tile ID override
 
-#### Font stuff:
+### Custom rolled flag parsing (only chrutil)
 
-- Bitmap font to CHR data.
-- Remap ascii values to tile-reduced IDs (ie, write `.chramap` directives in assembly).
-- Default to monocolor (single CHR plane), but give option to override.
+Three main sections (or "targets") of data: default, global, and per-input.
 
-    $ chrutil font.bmp --font --output font.asm
-    $ chrutil font.bmp --font --output font.asm --text "some text to reduce charset to"
-    $ chrutil font.bmp --font --output font.asm --text "some text to reduce charset to" --kern
+Default is defined at compile-time, while the global and per-input are defined
+at runtime.
 
-Given input text:
-- Take input string, render it with variable width bitmap fonts (pre-calculated text)
-- Take input string, only convert letters conatined in string (take file as input for text?)
+All command line options have a target, with the default (first) target
+"global".  Retrieving a value for a target will first look in the current
+target scope, fall back to the global target if nothing was found, then finally
+fall back to the default target.
+
+Each target should have a reference to the higher target scope.  The default
+target will not have a reference anywhere as all options will be expected to
+have been defined in the default target scope.
 
 ### Multiple input files
 
-Command line options should probably be ordered.  Something like input file
-followed by options.
+The order of commands and input files matters.  Options given before an input
+file are global for all input files, unless overwritten later.
 
     $ chrutil input_a.bmp input_b.bmp --b-option
     $ chrutil input_a.bmp --a-option input_b.bmp
@@ -61,12 +61,12 @@ For this command, `main.chr` will not contain the data from `input_b.bmp`.
         input_b.bmp --output only_b.chr \
         input_c.bmp
 
-Options will be per-input file or global.  If an option is defined once
-globally and once for an input file, the global value is overwritten with the
-input file's value.
+Options are per-input file or global.  If an option is defined once globally
+and once for an input file, the global value is overwritten with the input
+file's value.
 
-If an option is given more than once for the same scope, use the last set
-value.
+If an option is given more than once for the same scope the last value will be
+used.
 
 ### Multiple input and output files
 
@@ -90,15 +90,7 @@ notation.
     $ chrutil --tile-ids $02-$0D
     $ chrutil --tile-ids $02,$04,$08,$0A
 
-Option to exclude specific tiles or a range?
-
-    $ chrutil --tile-ids 2-14 --exclude-ids 4-6
-    $ chrutil --tile-ids 2-14 --exclude-ids 4,6,10
-
-    $ chrutil --tile-ids $02-$0D --exclude-ids $04-$06
-    $ chrutil --tile-ids $02-$0D --exclude-ids $04,$06,$0A
-
-### Allowing CHR as input
+### CHR as input
 
 This will append `font.chr` to the end of `main.chr` after `input_a.bmp` has
 been converted and written.
@@ -115,6 +107,64 @@ after `font.chr`.
         --output main.chr \
         font.chr \
         input_a.bmp
+
+## fontutil
+
+Takes a font in an image and removes blank tiles.  This can also output ca65
+remapping commands so ascii typed in source files will be able to use the
+generated font without any modification.
+
+    fontutil --input font.bmp --output converted.chr \
+             --remap character-remappings.i \
+             --widths character-widths.i \
+             --space-width 5 \
+             --input-offset 0 \
+             --input-length 0
+
+`--input` and `--output` are the only required options.
+
+An `--input-length` of zero disables the length check and will process all the
+characters in the font.
+
+## metatiles
+
+Convert metatiles in an image to tile-reduced CHR data and metadata that can be
+used to re-construct the metatiles.  The positional arguments are required, all
+the others are optional.
+
+    $ metatiles input.bmp output.chr metadata.i
+    $ metatiles input.bmp output.chr metadata.i \
+                --tile-size 2x2 \
+                --count 2 \
+                --offeset 1 \
+                --pad 16
+
+`--tile-size` defaults to 2x2.  This option accepts a single number (square
+metatile) or a WxH value.
+
+`--count` will process only the given number of metatiles.  A value of `0` will
+process all metatiles found in the input file.
+
+`--offset` will start processing metatiles after the given number of metatiles
+(not individual 8x8 tiles).
+
+`--pad` will pad the output CHR to contain at least the given number of 8x8
+tiles.
+
+### Output Metadata
+
+This data is used to reconstruct the metatiles from individual 8x8 pixel tiles.
+The data consists of two tables.  The first is a list of addresses (pointers)
+to data for each metatile.
+
+The data for each mitatile consists of a few vaules:
+
+    ; width, height
+    .byte 2, 2
+    ; palette, total tiles (W*H)
+    .byte 0, 4
+    ; list of tile IDs
+    .byte 128, 129, 128, 129
 
 ## romutil
 
@@ -160,18 +210,17 @@ matches data (sizes, etc).
 
     $ romutil nes2 input.nes
 
-## Custom rolled flag parsing
+## sbutil
 
-Three main sections (or "targets") of data: default, global, and per-input.
+An (unfinished) utility to pack and unpack StudyBox rom files.
 
-Default is defined at compile-time, while the global and per-input are defined
-at runtime.
+## text2chr
 
-All command line options have a target, with the default (first) target
-"global".  Retrieving a value for a target will first look in the current
-target scope, fall back to the global target if nothing was found, then finally
-fall back to the default target.
+Create a tile-reduced text image.  Letters are assumed to be variable width.
 
-Each target should have a reference to the higher target scope.  The default
-target will not have a reference anywhere as all options will be expected to
-have been defined in the default target scope.
+    $ text2chr --font font.bmp --metadata text.i --input "Hello world" --chr output.chr
+
+The file `font.bmp` is the font to use for the conversion and the text to
+convert is provided with the `--input` option.  Metadata is written to
+`text.i` and CHR data to `output.chr`.  The metadata consists of a data
+length (one byte) followed by that number tile IDs.
