@@ -1,9 +1,27 @@
 package mesen
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+)
+
+type MemoryType string
+
+const (
+	NesChrRam             MemoryType = "NesChrRam"
+	NesChrRom             MemoryType = "NesChrRom"
+	NesInternalRam        MemoryType = "NesInternalRam"
+	NesMemory             MemoryType = "NesMemory"
+	NesNametableRam       MemoryType = "NesNametableRam"
+	NesPaletteRam         MemoryType = "NesPaletteRam"
+	NesPrgRom             MemoryType = "NesPrgRom"
+	NesSaveRam            MemoryType = "NesSaveRam"
+	NesSecondarySpriteRam MemoryType = "NesSecondarySpriteRam"
+	NesSpriteRam          MemoryType = "NesSpriteRam"
+	NesWorkRam            MemoryType = "NesWorkRam"
 )
 
 type Workspace struct {
@@ -43,14 +61,21 @@ type jsonWorkspace struct {
 func LoadWorkspace(reader io.Reader) (*Workspace, error) {
 	// There's a UTF-8 BOM here because *reasons*.  Get rid of it,
 	// otherwise the JSON decoder dies.
-	// TODO: detect this, instead of assuming it's there.
-	garbo := make([]byte, 3)
-	_, err := reader.Read(garbo)
+	buf := bufio.NewReader(reader)
+	garbo, err := buf.Peek(3)
 	if err != nil {
-		return nil, fmt.Errorf("Error reading past BOM: %w", err)
+		return nil, fmt.Errorf("Error peeking for BOM: %w", err)
 	}
 
-	d := json.NewDecoder(reader)
+	// UTF-8 BOM.  Do we need to check for other BOMs?
+	if bytes.Equal(garbo, []byte{0xEF, 0xBB, 0xBF}) {
+		_, err = buf.Discard(3)
+		if err != nil {
+			return nil, fmt.Errorf("Error discarding BOM: %w", err)
+		}
+	}
+
+	d := json.NewDecoder(buf)
 	ws := &jsonWorkspace{}
 	err = d.Decode(ws)
 	if err != nil {
