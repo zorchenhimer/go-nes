@@ -5,7 +5,7 @@ EXT=.exe
 endif
 
 UTILS := chrutil romutil fontutil sbutil metatiles text2chr ws2da
-EXES := $(addprefix bin/,$(UTILS))
+EXES := $(addsuffix $(EXT), $(addprefix bin/,$(UTILS)))
 SRCS := $(addsuffix .go,$(addprefix cmd/,$(UTILS)))
 
 .PHONY: all clean fmt
