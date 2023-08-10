@@ -139,17 +139,16 @@ OUTER:
 				break OUTER
 			}
 
-			//startId := (y * opts.sizeHeight) + (x * opts.sizeWidth)
 			mt := MetaTile{Width: opts.sizeWidth, Height: opts.sizeHeight}
 			pal := -1
 			for i := 0; i < opts.sizeHeight; i++ {
 				for j := 0; j < opts.sizeWidth; j++ {
-					//Y := (y * opts.sizeHeight) + (i*mtWidth*opts.sizeWidth)
-					//X := (x * opts.sizeWidth) + j
-					//id := startId + (i*opts.sizeWidth) + j
-					//id := (Y*mtWidth*opts.sizeWidth)+X
-					id := (y * opts.sizeHeight) + (i * mtWidth * opts.sizeWidth) + j + (x * opts.sizeWidth)
-					//realid, ok := pt.IdMapping[id]
+
+					id := (y * opts.sizeHeight * tilesWidth) + // mt row start tile
+						(x * opts.sizeWidth) + // mt tile start
+						(i * opts.sizeWidth * mtWidth) + // mt inner row
+						j // mt inner col
+
 					realid := pt.ReducedIds[id]
 					if pal == -1 {
 						pal = pt.Patterns[realid].PaletteId
@@ -159,18 +158,13 @@ OUTER:
 						return fmt.Errorf("MetaTile ID %d has more than one palette", count-1)
 					}
 
-					//fmt.Printf("y:%d x:%d i:%d j:%d id:%d realid:%d\n", y, x, i, j, id, realid)
-					//fmt.Printf("y:%d x:%d i:%d j:%d X:%d Y:%d id:%d\n", y, x, i, j, X, Y, id)
 					mt.Tiles = append(mt.Tiles, realid)
 				}
 			}
-			//fmt.Println(mt, "\n")
 			mt.Palette = pal
 			metaTiles = append(metaTiles, mt)
 		}
 	}
-
-	//fmt.Println("ReducedIds:", pt.ReducedIds)
 
 	asmOut, err := os.Create(opts.OutputData)
 	if err != nil {
