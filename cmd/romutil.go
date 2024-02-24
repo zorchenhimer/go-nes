@@ -1,226 +1,206 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"encoding/json"
+	//"strings"
 
+	"github.com/alexflint/go-arg"
 	"github.com/zorchenhimer/go-nes/ines"
 )
 
-const usage string = `NES ROM Utility
-Usage: %s <command> <input> [options]
-
-Commands:
-	unpack
-		Unpack a ROM into a directory
-	pack
-		Pack an unpacked ROM given a directory
-	info
-		Print the header info about the ROM.
-	usage // TODO
-	nes2  // TODO
-`
-
-func main() {
-	if len(os.Args) < 2 {
-		fmt.Println(usage)
-		os.Exit(1)
-	}
-
-	if len(os.Args) < 3 {
-		fmt.Println(usage)
-		os.Exit(1)
-	}
-
-	var err error
-
-	switch strings.ToLower(os.Args[1]) {
-	case "unpack":
-		err = cmdUnpack(os.Args[2:]...) //len(os.Args)
-	case "pack":
-		// TODO: test this and clean it up
-		dir := strings.Trim(os.Args[2], `/\`) + "/"
-		cmdPack(dir, "packed.nes")
-	case "info":
-		cmdInfo(os.Args[2])
-	case "usage":
-	case "nes2":
-	default:
-		fmt.Printf("Invalid command: %q\n", os.Args[2])
-		// TODO: print usage
-		os.Exit(1)
-	}
-
-	if err != nil {
-		fmt.Println(err)
-	}
+type MainArgs struct {
+	Pack *CmdPack `arg:"subcommand:pack"`
+	Unpack *CmdUnpack `arg:"subcommand:unpack"`
 }
 
-func cmdPack(dirName, romName string) {
-	headerRaw, err := os.ReadFile(dirName + "header.json")
+type CmdPack struct {
+	Input string `arg:"positional,required"`
+	Output string `arg:"-o,--output" default:""`
+}
+
+type CmdUnpack struct {
+	Input string `arg:"positional,required"`
+	Output string `arg:"-o,--output" default:""`
+	PrgSplitSize int `arg:"-p,--prg-split" default:"0"`
+	ChrSplitSize int `arg:"-c,--chr-split" default:"0"`
+}
+
+type Metadata struct {
+	RomName string
+	Header *ines.Header
+	Prg []string
+	Chr []string `json:",omitempty"`
+	Misc string `json:",omitempty"`
+}
+
+func pack(args *CmdPack) error {
+	metaraw, err := os.ReadFile(filepath.Join(args.Input, "meta.json"))
 	if err != nil {
-		fmt.Printf("Unable to read header.json file: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("Unable to open meta.json: %w", err)
+	}
+	meta := &Metadata{}
+
+	err = json.Unmarshal(metaraw, meta)
+	if err != nil {
+		return fmt.Errorf("Error reading meta.json: %w", err)
 	}
 
-	header, err := ines.LoadHeader(headerRaw)
-	if err != nil {
-		fmt.Printf("Unable to load header data: %v\n", err)
-		os.Exit(1)
+	if args.Output == "" {
+		args.Output = meta.RomName
 	}
 
-	prgRaw, err := os.ReadFile(dirName + "prg.dat")
-	if err != nil {
-		fmt.Printf("Unable to read prg.dat file: %v\n", err)
-		os.Exit(1)
-	}
-
-	chr := []byte{}
-	for i := 0; i < 16; i++ {
-		chrfile := fmt.Sprintf("bank_%02d.chr", i)
-		fmt.Println(chrfile)
-		chrRaw, err := os.ReadFile(dirName + chrfile)
+	rom := meta.Header.Bytes()
+	for _, prg := range meta.Prg {
+		infile := filepath.Join(args.Input, prg)
+		raw, err := os.ReadFile(infile)
 		if err != nil {
-			fmt.Printf("Unable to read %s file: %v\n", chrfile, err)
-			os.Exit(1)
+			return fmt.Errorf("Error reading %s: %w", infile, err)
 		}
-
-		chr = append(chr, chrRaw...)
+		rom = append(rom, raw...)
 	}
 
-	rom := ines.NesRom{
-		Header: header,
-		PrgRom: prgRaw,
-		ChrRom: chr,
+	for _, chr := range meta.Chr {
+		infile := filepath.Join(args.Input, chr)
+		raw, err := os.ReadFile(infile)
+		if err != nil {
+			return fmt.Errorf("Error reading %s: %w", infile, err)
+		}
+		rom = append(rom, raw...)
 	}
 
-	err = rom.WriteFile(romName)
-	if err != nil {
-		fmt.Printf("Unable to write rom: %v\n", err)
-		os.Exit(1)
+	if meta.Misc != "" {
+		infile := filepath.Join(args.Input, meta.Misc)
+		raw, err := os.ReadFile(infile)
+		if err != nil {
+			return fmt.Errorf("Error reading %s: %w", infile, err)
+		}
+		rom = append(rom, raw...)
 	}
+
+	return os.WriteFile(args.Output, rom, 0666)
 }
 
-func cmdUnpack(args ...string) error {
-	if len(args) == 0 {
-		return fmt.Errorf("Missing filename")
+func unpack(args *CmdUnpack) error {
+	if args.Output == "" {
+		ext := filepath.Ext(args.Input)
+		args.Output = filepath.Base(args.Input[:len(args.Input)-len(ext)])
 	}
+	fmt.Println("Unpacking", args.Input, "to", args.Output)
 
-	filename := args[0]
-	outdir := filepath.Base(filename)
-	outdir = outdir[:len(outdir)-len(filepath.Ext(outdir))] + "/"
-
-	var (
-		SplitPrg     bool
-		SplitChr     bool
-		OutDirectory string
-	)
-
-	fs := flag.NewFlagSet("unpacking", 0)
-	fs.BoolVar(&SplitPrg, "split-prg", false, "Split the PRG data into 16kb chunks")
-	fs.BoolVar(&SplitChr, "split-chr", false, "Split the CHR data into 4kb chunks")
-	fs.StringVar(&OutDirectory, "directory", outdir, "Output directory")
-
-	var err error
-	if len(args) > 1 {
-		err = fs.Parse(args[1:])
-	} else {
-		err = fs.Parse([]string{})
-	}
-
+	err := os.MkdirAll(args.Output, 0777)
 	if err != nil {
 		return err
 	}
 
-	if !strings.HasSuffix(OutDirectory, "/") {
-		OutDirectory = OutDirectory + "/"
-	}
-
-	err = os.MkdirAll(OutDirectory, 0777)
-	if err != nil {
-		return fmt.Errorf("Unable to create output directory: %v", err)
-	}
-
-	rom, err := ines.ReadRom(filename)
+	rom, err := ines.ReadRom(args.Input)
 	if err != nil {
 		return fmt.Errorf("Error reading rom: %v", err)
 	}
 
-	err = rom.Header.WriteMeta(OutDirectory + "header.json")
-	if err != nil {
-		return fmt.Errorf("Error writing header: %v", err)
+	meta := Metadata{
+		RomName: filepath.Base(args.Input),
+		Header: rom.Header,
+		Prg: []string{},
+		Chr: []string{},
 	}
 
-	if SplitPrg {
-		size := 16 * 1024
-		for i := 0; i < len(rom.PrgRom)/size; i++ {
-			var raw []byte
-			start, end := i*size, (i*size)+size
+	if args.PrgSplitSize == 0 {
+		args.PrgSplitSize = int(rom.Header.PrgSize)/1024
+	}
 
-			if i+size > len(rom.PrgRom) {
-				raw = rom.PrgRom[start:len(rom.PrgRom)]
-			} else {
-				raw = rom.PrgRom[start:end]
-			}
+	if args.ChrSplitSize == 0 && rom.Header.ChrSize > 0 {
+		args.ChrSplitSize = int(rom.Header.ChrSize)/1024
+	}
 
-			err = os.WriteFile(fmt.Sprintf("%sprg_%d.dat", OutDirectory, i), raw, 0777)
-			if err != nil {
-				return fmt.Errorf("Error writing PRG data: %v", err)
-			}
-		}
-	} else {
-		err = os.WriteFile(OutDirectory+"prg.dat", rom.PrgRom, 0777)
-		if err != nil {
-			return fmt.Errorf("Error writing PRG data: %v", err)
-		}
+	if args.PrgSplitSize % 8 != 0 {
+		return fmt.Errorf("PRG can only be split in multiples of 8kb")
+	}
+
+	err, meta.Prg = writeBin(rom.PrgRom, args.PrgSplitSize, args.Output, "prg")
+	if err != nil {
+		return fmt.Errorf("Error writing PRG data: %w", err)
 	}
 
 	if rom.Header.ChrSize > 0 {
-		if SplitChr {
-			size := 4 * 1024
-			for i := 0; i < len(rom.ChrRom)/size; i++ {
-				var raw []byte
-				start, end := i*size, (i*size)+size
-
-				if i+size > len(rom.ChrRom) {
-					raw = rom.ChrRom[start:len(rom.ChrRom)]
-				} else {
-					raw = rom.ChrRom[start:end]
-				}
-
-				err = os.WriteFile(fmt.Sprintf("%schr_%d.dat", OutDirectory, i), raw, 0777)
-				if err != nil {
-					return fmt.Errorf("Error writing CHR data: %v", err)
-				}
-			}
-		} else {
-			err = os.WriteFile(OutDirectory+"chr.dat", rom.ChrRom, 0777)
-			if err != nil {
-				return fmt.Errorf("Error writing CHR data: %v", err)
-			}
+		err, meta.Chr = writeBin(rom.ChrRom, args.ChrSplitSize, args.Output, "chr")
+		if err != nil {
+			return fmt.Errorf("Error writing CHR data: %w", err)
 		}
 	}
 
 	if rom.Header.MiscSize > 0 {
-		err = os.WriteFile(OutDirectory+"misc.dat", rom.MiscRom, 0777)
+		err = os.WriteFile(filepath.Join(args.Output, "misc.dat"), rom.MiscRom, 0666)
 		if err != nil {
-			return fmt.Errorf("Error writing MISC data: %v", err)
+			return fmt.Errorf("Error writing Misc data: %w", err)
 		}
+		meta.Misc = filepath.Join(args.Output, "misc.dat")
+	}
+
+	rawjson, err := json.MarshalIndent(meta, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(filepath.Join(args.Output, "meta.json"), rawjson, 0666)
+	if err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func cmdInfo(filename string) {
-	rom, err := ines.ReadRom(filename)
-	if err != nil {
-		fmt.Println(err)
+func writeBin(raw []byte, size int, outdir, prefix string) (error, []string) {
+	names := []string{}
+	size *= 1024
+	for i := 0; i < len(raw)/size; i++ {
+		start, end := i*size, (i*size)+size
+		//fmt.Printf("[%d] start:%d end:%d len:%d exit:%d\n", i, start, end, len(raw), len(raw)/size)
+
+		var dat []byte
+		if i+size > len(raw) {
+			dat = raw[start:len(raw)]
+		} else {
+			dat = raw[start:end]
+		}
+
+		outname := filepath.Join(outdir, fmt.Sprintf("%s_%02X.bin", prefix, i))
+		names = append(names, filepath.Base(outname))
+		err := os.WriteFile(outname, dat, 0666)
+		if err != nil {
+			return err, nil
+		}
+	}
+	return nil, names
+}
+
+func run(args *MainArgs) error {
+	switch {
+	case args.Pack != nil:
+		return pack(args.Pack)
+	case args.Unpack != nil:
+		return unpack(args.Unpack)
+	default:
+		return fmt.Errorf("huh?")
+	}
+
+	return nil
+}
+
+func main() {
+	args := &MainArgs{}
+	p := arg.MustParse(args)
+	if p.Subcommand() == nil {
+		fmt.Fprintln(os.Stderr, "Missing command")
+		p.WriteUsage(os.Stderr)
 		os.Exit(1)
 	}
 
-	fmt.Println(rom.Debug())
-	fmt.Println(rom.Header.RomOffsets())
+	err := run(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }
