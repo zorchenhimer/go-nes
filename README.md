@@ -207,3 +207,13 @@ The file `font.bmp` is the font to use for the conversion and the text to
 convert is provided with the `--input` option.  Metadata is written to
 `text.i` and CHR data to `output.chr`.  The metadata consists of a data
 length (one byte) followed by that number tile IDs.
+
+## usage
+
+Create an image showing the usage of a ROM.
+
+    $ usage input.nes output.png
+
+The output image is made up of columns of data.  Each column represents 16k and
+is 16 bytes wide.  Each pixel in the image is a single bit in the ROM.  Only
+the PRG data is used to construct the image.

@@ -4,7 +4,7 @@ ifeq ($(OS),Windows_NT)
 EXT=.exe
 endif
 
-UTILS := chrutil romutil fontutil sbutil metatiles text2chr ws2da
+UTILS := chrutil romutil fontutil sbutil metatiles text2chr ws2da usage
 EXES := $(addsuffix $(EXT), $(addprefix bin/,$(UTILS)))
 SRCS := $(addsuffix .go,$(addprefix cmd/,$(UTILS)))
 
@@ -37,4 +37,7 @@ bin/text2chr$(EXT): cmd/text2chr.go image/*.go
 	go build -o $@ $<
 
 bin/ws2da$(EXT): cmd/ws2da.go mesen/*.go
+	go build -o $@ $<
+
+bin/usage$(EXT): cmd/usage.go ines/*.go
 	go build -o $@ $<
