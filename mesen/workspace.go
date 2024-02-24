@@ -26,32 +26,34 @@ const (
 
 type Workspace struct {
 	WatchEntries []string
-
-	Labels []struct {
-		Address    uint
-		MemoryType string
-		Label      string
-		Comment    string
-		Flags      string
-		Length     int
-	}
-
-	Breakpoints []struct {
-		BreakOnRead  bool
-		BreakOnWrite bool
-		Enabled      bool
-		MarkEvent    bool
-		MemoryType   string
-		StartAddress uint
-		EndAddress   uint
-		CpuType      string
-		AnyAddress   bool
-		IsAssert     bool
-		Condition    string
-	}
+	Labels       []Label
+	Breakpoints  []Breakpoint
 
 	//TableMappings []struct{
 	//} `json:"TblMappings"`
+}
+
+type Label struct {
+	Address    uint
+	MemoryType MemoryType
+	Label      string
+	Comment    string
+	Flags      string
+	Length     int
+}
+
+type Breakpoint struct {
+	BreakOnRead  bool
+	BreakOnWrite bool
+	Enabled      bool
+	MarkEvent    bool
+	MemoryType   MemoryType
+	StartAddress uint
+	EndAddress   uint
+	CpuType      string
+	AnyAddress   bool
+	IsAssert     bool
+	Condition    string
 }
 
 type jsonWorkspace struct {

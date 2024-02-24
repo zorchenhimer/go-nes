@@ -8,6 +8,7 @@ import (
 	"os"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/alexflint/go-arg"
 	"github.com/zorchenhimer/go-nes/mesen"
@@ -83,7 +84,22 @@ func run(args *Args) error {
 		if label.MemoryType == "NesPrgRom" {
 			addr += args.prgoffset
 		}
-		fmt.Fprintf(file, "LABEL { ADDRESS $%04X; NAME %q; };\n", addr, label.Label)
+
+		items := []string{
+			fmt.Sprintf("ADDR $%04X;", addr),
+			fmt.Sprintf("NAME %q;", label.Label),
+		}
+
+		if label.Length > 1 {
+			items = append(items, fmt.Sprintf("SIZE %d;", label.Length))
+		}
+
+		if label.Comment != "" {
+			items = append(items, fmt.Sprintf("COMMENT %q;",
+				strings.ReplaceAll(label.Comment, "\n", "\n;")))
+		}
+
+		fmt.Fprintf(file, "LABEL { %s };\n", strings.Join(items, " "))
 	}
 
 	return nil
