@@ -198,6 +198,8 @@ func ParseHeader(raw []byte) (*Header, error) {
 	n2map := uint16(flags8&0xF) << 12
 	header.Nes2Mapper = header.Nes2Mapper | n2map
 
+	header.SubMapper = uint8(flags8>>4)
+
 	// PrgRam
 	if raw[10] & 0xF0 != 0 {
 		shift := uint(raw[10] >> 4)
