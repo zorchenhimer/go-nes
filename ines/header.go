@@ -51,9 +51,9 @@ type Header struct {
 	Console    ConsoleType
 
 	// Unshifted values
-	PrgRamSize uint
+	PrgRamSize   uint
 	PrgNvramSize uint
-	ChrRamSize uint
+	ChrRamSize   uint
 	ChrNvramSize uint
 }
 
@@ -198,29 +198,29 @@ func ParseHeader(raw []byte) (*Header, error) {
 	n2map := uint16(flags8&0xF) << 12
 	header.Nes2Mapper = header.Nes2Mapper | n2map
 
-	header.SubMapper = uint8(flags8>>4)
+	header.SubMapper = uint8(flags8 >> 4)
 
 	// PrgRam
-	if raw[10] & 0xF0 != 0 {
+	if raw[10]&0xF0 != 0 {
 		shift := uint(raw[10] >> 4)
 		//header.PrgRamSize = uint(64 << shift)
 		header.PrgRamSize = shift
 	}
 
 	// PRG-NVRAM/EEPROM
-	if raw[10] & 0x0F != 0 {
+	if raw[10]&0x0F != 0 {
 		shift := uint(raw[10] & 0x0F)
 		//header.PrgNvramSize = uint(64 << shift)
 		header.PrgNvramSize = shift
 	}
 
-	if raw[11] & 0xF0 != 0 {
+	if raw[11]&0xF0 != 0 {
 		shift := uint(raw[11] >> 4)
 		//header.ChrRamSize = uint(64 << shift)
 		header.ChrRamSize = shift
 	}
 
-	if raw[11] & 0x0F != 0 {
+	if raw[11]&0x0F != 0 {
 		shift := uint(raw[11] & 0x0F)
 		//header.ChrNvramSize = uint(64 << shift)
 		header.ChrNvramSize = shift
@@ -256,7 +256,7 @@ func (h Header) Bytes() []byte {
 
 	lowermap := (h.Mapper & 0x0F) << 4
 	uppermap := (h.Mapper & 0xF0)
-	highmap  := (h.Mapper & 0xF00) >> 8
+	highmap := (h.Mapper & 0xF00) >> 8
 	flagSix |= uint8(lowermap)
 
 	data = append(data, flagSix)
@@ -270,16 +270,16 @@ func (h Header) Bytes() []byte {
 	flagSeven |= uint8(uppermap)
 	data = append(data, flagSeven)
 
-	flagEight := uint8(h.SubMapper << 4 | uint8(highmap))
+	flagEight := uint8(h.SubMapper<<4 | uint8(highmap))
 	data = append(data, flagEight)
 
 	// TODO: flagNine (PRG/CHR ROM MSB)
 	data = append(data, 0x00)
 
-	flagTen := uint8(h.PrgRamSize << 4 | h.PrgNvramSize & 0x0F)
+	flagTen := uint8(h.PrgRamSize<<4 | h.PrgNvramSize&0x0F)
 	data = append(data, flagTen)
 
-	flagEleven := uint8(h.ChrRamSize << 4 | h.ChrNvramSize & 0x0F)
+	flagEleven := uint8(h.ChrRamSize<<4 | h.ChrNvramSize&0x0F)
 	data = append(data, flagEleven)
 
 	for len(data) < 16 {

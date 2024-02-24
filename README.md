@@ -173,11 +173,7 @@ Utility to work directly with ROM files.
 - Unpack ROM into PRG and CHR
 - Option to split PRG and CHR into banks
 - Pack ROM from unpacked data
-- Apply/create patches (IPS and NINJA)
 - ROM info printout (header info, hashes, etc)
-- Overwrite default page offsets for splitting
-- Page usage report
-- Read Nestopia (or Mesen's formatted version) database and correct mapper numbers
 
 ### Command line
 
@@ -193,22 +189,9 @@ Re-pack an unpacked ROM.
 
     $ romutil pack unpacked_data_directory/
 
-Print mapper info and hashes (CRC, MD5, SHA, etc) to the console.
+Print mapper info and CRC32 hashes
 
     $ romutil info input.nes
-
-Generate image visualizing ROM usage.  Defaults to replacing the input file's
-`.nes` extension with `.png`.
-
-Visualize both total usage, and "data type" stuff.  Eg, make CHR data
-distinguishable at a glance (data as shades of grey?).
-
-    $ romutil usage input.nes [options]
-
-Convert to NES2.0 ROM format.  If ROM is already a NES2.0 ROM, verify header
-matches data (sizes, etc).
-
-    $ romutil nes2 input.nes
 
 ## sbutil
 
