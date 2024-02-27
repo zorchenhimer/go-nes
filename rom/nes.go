@@ -27,6 +27,13 @@ type NesRom struct {
 	RomCrc  Crc32
 }
 
+func (r *NesRom) RomType() string {
+	if r.Header.Nes2 {
+		return "NES 2.0"
+	}
+	return "iNES"
+}
+
 func (r *NesRom) Debug() string {
 	return r.Header.Debug() +
 		fmt.Sprintf("\nRomCrc: %s\nPrgCrc: %s\nChrCrc: %s\nMiscCrc: %s", r.RomCrc.HexString(), r.PrgCrc.HexString(), r.ChrCrc.HexString(), r.MiscCrc.HexString())
@@ -80,7 +87,7 @@ func Read(reader io.Reader) (*NesRom, error) {
 	chrEnd := rom.Header.ChrStart() + rom.Header.ChrSize
 
 	if chrEnd > uint(len(rawrom)) {
-		return nil, fmt.Errorf("Sizes too large:\n  chrEnd: %d\n  len(nesraw): %d\n", chrEnd, len(rawrom))
+		return nil, fmt.Errorf("Sizes too large: chrEnd:%d len(nesraw):%d", chrEnd, len(rawrom))
 	}
 
 	rom.PrgRom = rawrom[rom.Header.PrgStart():prgEnd]

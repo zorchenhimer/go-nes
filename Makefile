@@ -21,7 +21,7 @@ clean:
 bin/chrutil$(EXT): cmd/chrutil.go common/*.go image/*.go
 	go build -o $@ $<
 
-bin/romutil$(EXT): cmd/romutil.go ines/*.go
+bin/romutil$(EXT): cmd/romutil.go rom/*.go
 	go build -o $@ $<
 
 bin/sbutil$(EXT): cmd/sbutil.go studybox/*.go
@@ -39,5 +39,5 @@ bin/text2chr$(EXT): cmd/text2chr.go image/*.go
 bin/ws2da$(EXT): cmd/ws2da.go mesen/*.go
 	go build -o $@ $<
 
-bin/usage$(EXT): cmd/usage.go ines/*.go
+bin/usage$(EXT): cmd/usage.go rom/*.go
 	go build -o $@ $<
