@@ -20,7 +20,7 @@ func (sb *StudyBox) Export(directory string) error {
 			Data:              []jsonData{},
 		}
 
-		file, err := os.Create(fmt.Sprintf("%s/Page_%02d.txt", directory, pidx))
+		file, err := os.Create(fmt.Sprintf("%s/page%02d_0000.txt", directory, pidx))
 		if err != nil {
 			return err
 		}
@@ -74,13 +74,13 @@ func (sb *StudyBox) Export(directory string) error {
 
 				switch jData.Type {
 				case "pattern":
-					jData.File = fmt.Sprintf("%s/chrData_page%02d_%04d.chr", directory, pidx, dataStartId)
+					jData.File = fmt.Sprintf("%s/page%02d_%04d_chrData.chr", directory, pidx, dataStartId)
 
 				case "nametable":
-					jData.File = fmt.Sprintf("%s/ntData_page%02d_%04d.dat", directory, pidx, dataStartId)
+					jData.File = fmt.Sprintf("%s/page%02d_%04d_ntData.dat", directory, pidx, dataStartId)
 
 				case "script":
-					jData.File = fmt.Sprintf("%s/scriptData_page%02d_%04d.dat", directory, pidx, dataStartId)
+					jData.File = fmt.Sprintf("%s/page%02d_%04d_scriptData.dat", directory, pidx, dataStartId)
 
 					//script, err := DissassembleScript(scriptData)
 					//if err != nil {
