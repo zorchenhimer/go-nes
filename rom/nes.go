@@ -1,4 +1,4 @@
-package ines
+package rom
 
 import (
 	"fmt"
@@ -17,8 +17,8 @@ func (crc Crc32) HexString() string {
 type NesRom struct {
 	Header *Header
 
-	PrgRom  []byte
-	ChrRom  []byte
+	Prgrom  []byte
+	Chrrom  []byte
 	MiscRom []byte // data after the CHR rom
 
 	PrgCrc  Crc32
@@ -27,11 +27,19 @@ type NesRom struct {
 	RomCrc  Crc32
 }
 
-func (r *NesRom) RomType() string {
+func (r *NesRom) ChrRom() []byte {
+	return r.Chrrom
+}
+
+func (r *NesRom) PrgRom() []byte {
+	return r.Prgrom
+}
+
+func (r *NesRom) RomType() RomType {
 	if r.Header.Nes2 {
-		return "NES 2.0"
+		return NES2
 	}
-	return "iNES"
+	return INES
 }
 
 func (r *NesRom) Debug() string {
@@ -40,17 +48,17 @@ func (r *NesRom) Debug() string {
 }
 
 func (r *NesRom) WriteFile(filename string) error {
-	if r.Header.ChrSize != uint(len(r.ChrRom)) {
-		return fmt.Errorf("CHR Size missmatch expected $%04X, found $%04X", r.Header.ChrSize, len(r.ChrRom))
+	if r.Header.ChrSize != uint(len(r.Chrrom)) {
+		return fmt.Errorf("CHR Size missmatch expected $%04X, found $%04X", r.Header.ChrSize, len(r.Chrrom))
 	}
 
-	if r.Header.PrgSize != uint(len(r.PrgRom)) {
-		return fmt.Errorf("PRG Size missmatch expected $%04X, found $%04X", r.Header.PrgSize, len(r.PrgRom))
+	if r.Header.PrgSize != uint(len(r.Prgrom)) {
+		return fmt.Errorf("PRG Size missmatch expected $%04X, found $%04X", r.Header.PrgSize, len(r.Prgrom))
 	}
 
 	data := r.Header.Bytes()
-	data = append(data, r.PrgRom...)
-	data = append(data, r.ChrRom...)
+	data = append(data, r.Prgrom...)
+	data = append(data, r.Chrrom...)
 
 	return os.WriteFile(filename, data, 0777)
 }
@@ -63,10 +71,10 @@ func ReadRom(filename string) (*NesRom, error) {
 	}
 	defer file.Close()
 
-	return Read(file)
+	return ReadInes(file)
 }
 
-func Read(reader io.Reader) (*NesRom, error) {
+func ReadInes(reader io.Reader) (*NesRom, error) {
 	rawrom, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("Error reading ROM: %w", err)
@@ -90,14 +98,14 @@ func Read(reader io.Reader) (*NesRom, error) {
 		return nil, fmt.Errorf("Sizes too large: chrEnd:%d len(nesraw):%d", chrEnd, len(rawrom))
 	}
 
-	rom.PrgRom = rawrom[rom.Header.PrgStart():prgEnd]
+	rom.Prgrom = rawrom[rom.Header.PrgStart():prgEnd]
 	if rom.Header.HasChr() {
-		rom.ChrRom = rawrom[rom.Header.ChrStart():chrEnd]
+		rom.Chrrom = rawrom[rom.Header.ChrStart():chrEnd]
 	}
 
-	rom.PrgCrc = Crc32(crc32.ChecksumIEEE(rom.PrgRom))
+	rom.PrgCrc = Crc32(crc32.ChecksumIEEE(rom.Prgrom))
 	if rom.Header.HasChr() {
-		rom.ChrCrc = Crc32(crc32.ChecksumIEEE(rom.ChrRom))
+		rom.ChrCrc = Crc32(crc32.ChecksumIEEE(rom.Chrrom))
 	}
 
 	return rom, nil

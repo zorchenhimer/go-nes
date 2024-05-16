@@ -1,44 +1,196 @@
-package unif
+package rom
 
 import (
-	"io"
-	"bytes"
-	"strings"
-	"strconv"
 	"bufio"
-	"fmt"
+	"bytes"
 	"encoding/binary"
+	"fmt"
+	"io"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
 )
 
-type Rom struct {
+type Remap struct {
+	Pattern   string
+	Mapper    uint
+	Submapper uint8
+	Mirroring MirrorType
+	PrgRam    uint
+	ChrRam    uint
+}
+
+// Board name -> mapper, submapper, etc
+var UnifRemap = []Remap{
+	Remap{Pattern: "*-8237", Mapper: 215},
+	Remap{Pattern: "*-8237a", Mapper: 215, Submapper: 1},
+	Remap{Pattern: "*-cnrom", Mapper: 3, Submapper: 2},
+	Remap{Pattern: "*-h2288", Mapper: 123},
+	Remap{Pattern: "*-kof97", Mapper: 263},
+	Remap{Pattern: "*-sa-0036", Mapper: 149},
+	Remap{Pattern: "*-sa-0037", Mapper: 148},
+	Remap{Pattern: "*-sa-016-1m", Mapper: 79},
+	Remap{Pattern: "*-sa-72007", Mapper: 145},
+	Remap{Pattern: "*-sa-72008", Mapper: 133},
+	Remap{Pattern: "*-sa-nrom", Mapper: 143},
+	Remap{Pattern: "*-sachen-74ls374n", Mapper: 150},
+	Remap{Pattern: "*-sachen-8259a", Mapper: 141},
+	Remap{Pattern: "*-sachen-8259b", Mapper: 138},
+	Remap{Pattern: "*-sachen-8259c", Mapper: 139},
+	Remap{Pattern: "*-sachen-8259d", Mapper: 137},
+	Remap{Pattern: "*-shero", Mapper: 262, Mirroring: M_IGNORE},
+	Remap{Pattern: "*-tc-u01-1.5m", Mapper: 147},
+	Remap{Pattern: "*-tlrom", Mapper: 4},
+	Remap{Pattern: "dreamtech01", Mapper: 521, ChrRam: 8},
+	Remap{Pattern: "nes-nrom-128", Mapper: 0},
+	Remap{Pattern: "nes-nrom-256", Mapper: 0},
+}
+
+type UnifRom struct {
 	Version int
-	Name string
-	Mapper string
+	Name    string
+	Mapper  string
 
 	PrgData []*ChunkData
 	ChrData []*ChunkData
-	Chunks []string
+	Chunks  []string
 
-	Writer string // dumping software
-	Read string // comments
-	DumpInfo []byte
-	TvStandard byte
+	Writer      string // dumping software
+	Read        string // comments
+	DumpInfo    []byte
+	TvStandard  byte
 	Controllers byte
-	Battery bool
-	ChrRam bool // ignored by emulators
-	Mirroring byte
+	Battery     bool
+	ChrRam      bool // ignored by emulators
+	Mirroring   byte
 }
 
-func (r *Rom) RomType() string {
-	return "UNIF"
+func (r *UnifRom) Ines() []byte {
+	prg := []byte{}
+	prgSlice := ChunkSlice(r.PrgData)
+	sort.Sort(prgSlice)
+
+	for _, chunk := range prgSlice {
+		prg = append(prg, chunk.Data...)
+	}
+
+	chr := []byte{}
+	chrSlice := ChunkSlice(r.ChrData)
+	sort.Sort(chrSlice)
+
+	for _, chunk := range chrSlice {
+		chr = append(chr, chunk.Data...)
+	}
+
+	header := Header{
+		PrgSize:          uint(len(prg)),
+		ChrSize:          uint(len(chr)),
+		PersistentMemory: r.Battery,
+	}
+
+	found := false
+	fmt.Printf("Looking for %q\n", strings.ToLower(r.Mapper))
+	for _, remap := range UnifRemap {
+		match, err := filepath.Match(remap.Pattern, strings.ToLower(r.Mapper))
+		if err != nil {
+			panic(err)
+		}
+
+		if !match {
+			continue
+		}
+
+		found = true
+		header.Mapper = remap.Mapper
+		header.Nes2Mapper = uint16(remap.Mapper)
+		header.Mirroring = remap.Mirroring
+
+		if remap.PrgRam != 0 {
+			header.PrgRamSize = unshift(remap.PrgRam)
+		}
+
+		if remap.ChrRam != 0 {
+			header.ChrRamSize = unshift(remap.ChrRam)
+		}
+
+		break
+	}
+
+	if !found {
+		panic(r.Mapper + " not implemented")
+	}
+
+	raw := header.Bytes()
+	raw = append(raw, prg...)
+	raw = append(raw, chr...)
+
+	return raw
+}
+
+func unshift(val uint) uint {
+	count := uint(0)
+	for val > 64 {
+		val >>= 1
+		count++
+	}
+	return count
+}
+
+func (r *UnifRom) Debug(w io.Writer) error {
+	_, err := fmt.Fprintf(w, `%s
+	Mapper: %s
+	Version: %d
+	Writer: %s
+	Read: %s
+	DumpInfo: %v
+	TvStandard: %X
+	Controllers: %08b
+	Battery: %t
+	ChrRam: %t
+	Mirroring: %X
+
+`,
+		strings.Trim(r.Name, "\x00"),
+		strings.Trim(r.Mapper, "\x00"),
+		r.Version,
+		r.Writer,
+		r.Read,
+		r.DumpInfo,
+		r.TvStandard,
+		r.Controllers,
+		r.Battery,
+		r.ChrRam,
+		r.Mirroring,
+	)
+
+	return err
+}
+
+func (r *UnifRom) RomType() RomType {
+	return UNIF
+}
+
+func (r *UnifRom) PrgRom() []byte {
+	return []byte{}
+}
+
+func (r *UnifRom) ChrRom() []byte {
+	return []byte{}
 }
 
 // PRG or CHR
 type ChunkData struct {
-	Id int
+	Id   int
 	Data []byte
-	Crc []byte
+	Crc  []byte
 }
+
+type ChunkSlice []*ChunkData
+
+func (s ChunkSlice) Len() int           { return len(s) }
+func (s ChunkSlice) Less(i, j int) bool { return s[i].Id < s[j].Id }
+func (s ChunkSlice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 
 var chunkLengths = map[string]int{
 	"DINF": 204,
@@ -83,7 +235,7 @@ var chunkLengths = map[string]int{
 	"CCKF": 4,
 }
 
-func ReadUnif(r io.Reader) (*Rom, error) {
+func ReadUnif(r io.Reader) (*UnifRom, error) {
 	reader := bufio.NewReader(r)
 	magic := make([]byte, 4)
 
@@ -96,7 +248,7 @@ func ReadUnif(r io.Reader) (*Rom, error) {
 		return nil, fmt.Errorf("Not a UNIF rom")
 	}
 
-	rom := &Rom{}
+	rom := &UnifRom{}
 
 	version := make([]byte, 4)
 	_, err = reader.Read(version)
@@ -165,12 +317,12 @@ func ReadUnif(r io.Reader) (*Rom, error) {
 
 		switch chunkType {
 		case "MAPR":
-			rom.Mapper = string(rawVal)
+			rom.Mapper = trimnul(string(rawVal))
 
 		case "PRG0", "PRG1", "PRG2", "PRG3", "PRG4", "PRG5", "PRG6", "PRG7", "PRG8",
-		     "PRG9", "PRGA", "PRGB", "PRGC", "PRGD", "PRGE", "PRGF", "CHR0", "CHR1",
-			 "CHR2", "CHR3", "CHR4", "CHR5", "CHR6", "CHR7", "CHR8", "CHR9", "CHRA",
-			 "CHRB", "CHRC", "CHRD", "CHRE", "CHRF":
+			"PRG9", "PRGA", "PRGB", "PRGC", "PRGD", "PRGE", "PRGF", "CHR0", "CHR1",
+			"CHR2", "CHR3", "CHR4", "CHR5", "CHR6", "CHR7", "CHR8", "CHR9", "CHRA",
+			"CHRB", "CHRC", "CHRD", "CHRE", "CHRF":
 
 			id64, err := strconv.ParseInt(string(rawChunkType[3]), 16, 8)
 			if err != nil {
@@ -202,16 +354,16 @@ func ReadUnif(r io.Reader) (*Rom, error) {
 
 			if !found {
 				*chunkData = append(*chunkData, &ChunkData{
-					Id: id,
+					Id:   id,
 					Data: rawVal,
-					Crc: nil,
+					Crc:  nil,
 				})
 			}
 
 		case "PCK0", "PCK1", "PCK2", "PCK3", "PCK4", "PCK5", "PCK6", "PCK7", "PCK8",
-		     "PCK9", "PCKA", "PCKB", "PCKC", "PCKD", "PCKE", "PCKF", "CCK0", "CCK1",
-			 "CCK2", "CCK3", "CCK4", "CCK5", "CCK6", "CCK7", "CCK8", "CCK9", "CCKA",
-			 "CCKB", "CCKC", "CCKD", "CCKE", "CCKF":
+			"PCK9", "PCKA", "PCKB", "PCKC", "PCKD", "PCKE", "PCKF", "CCK0", "CCK1",
+			"CCK2", "CCK3", "CCK4", "CCK5", "CCK6", "CCK7", "CCK8", "CCK9", "CCKA",
+			"CCKB", "CCKC", "CCKD", "CCKE", "CCKF":
 
 			var chunkData *[]*ChunkData
 			if strings.HasPrefix(chunkType, "PCK") {
@@ -242,20 +394,20 @@ func ReadUnif(r io.Reader) (*Rom, error) {
 
 			if !found {
 				*chunkData = append(*chunkData, &ChunkData{
-					Id: id,
+					Id:   id,
 					Data: nil,
-					Crc: rawVal,
+					Crc:  rawVal,
 				})
 			}
 
 		case "NAME":
-			rom.Name = string(rawVal)
+			rom.Name = trimnul(string(rawVal))
 
 		case "WRTR":
-			rom.Writer = string(rawVal)
+			rom.Writer = trimnul(string(rawVal))
 
 		case "READ":
-			rom.Read = string(rawVal)
+			rom.Read = trimnul(string(rawVal))
 
 		case "DINF":
 			rom.DumpInfo = rawVal
@@ -278,4 +430,8 @@ func ReadUnif(r io.Reader) (*Rom, error) {
 	}
 
 	return rom, nil
+}
+
+func trimnul(str string) string {
+	return strings.Trim(str, "\x00")
 }

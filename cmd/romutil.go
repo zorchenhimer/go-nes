@@ -9,7 +9,9 @@ import (
 	"hash/crc32"
 
 	"github.com/alexflint/go-arg"
-	"github.com/zorchenhimer/go-nes/ines"
+	ines "github.com/zorchenhimer/go-nes/rom"
+	//"github.com/zorchenhimer/go-nes/rom/ines"
+	//"github.com/zorchenhimer/go-nes/rom/unif"
 )
 
 type MainArgs struct {
@@ -51,12 +53,12 @@ func info(args *CmdInfo) error {
 	prghsh := crc32.New(crc32.IEEETable)
 	chrhsh := crc32.New(crc32.IEEETable)
 
-	_, err = prghsh.Write(rom.PrgRom)
+	_, err = prghsh.Write(rom.PrgRom())
 	if err != nil {
 		return err
 	}
 
-	_, err = chrhsh.Write(rom.ChrRom)
+	_, err = chrhsh.Write(rom.ChrRom())
 	if err != nil {
 		return err
 	}
@@ -184,13 +186,13 @@ func unpack(args *CmdUnpack) error {
 		return fmt.Errorf("PRG can only be split in multiples of 8kb")
 	}
 
-	err, meta.Prg = writeBin(rom.PrgRom, args.PrgSplitSize, args.Output, "prg")
+	err, meta.Prg = writeBin(rom.PrgRom(), args.PrgSplitSize, args.Output, "prg")
 	if err != nil {
 		return fmt.Errorf("Error writing PRG data: %w", err)
 	}
 
 	if rom.Header.ChrSize > 0 {
-		err, meta.Chr = writeBin(rom.ChrRom, args.ChrSplitSize, args.Output, "chr")
+		err, meta.Chr = writeBin(rom.ChrRom(), args.ChrSplitSize, args.Output, "chr")
 		if err != nil {
 			return fmt.Errorf("Error writing CHR data: %w", err)
 		}

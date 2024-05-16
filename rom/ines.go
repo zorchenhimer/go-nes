@@ -1,4 +1,4 @@
-package ines
+package rom
 
 import (
 	"bytes"
@@ -46,9 +46,10 @@ type Header struct {
 	Mapper uint
 
 	//ExtendedConsole bool
-	Nes2Mapper uint16
-	SubMapper  uint8
-	Console    ConsoleType
+	Nes2Mapper    uint16
+	SubMapper     uint8
+	Console       ConsoleType
+	AltNametables bool
 
 	// Unshifted values
 	PrgRamSize   uint
@@ -169,6 +170,7 @@ func ParseHeader(raw []byte) (*Header, error) {
 
 	header.PersistentMemory = (flagSix & 0x02) == 0x02
 	header.TrainerPresent = (flagSix & 0x04) == 0x04
+	header.AltNametables = (flagSix & 0x08) == 0x08
 
 	// Hard-wired four-screen mode
 	if (flagSix & 0x08) == 0x08 {
@@ -191,6 +193,7 @@ func ParseHeader(raw []byte) (*Header, error) {
 	lowermap := flagSix & 0xF0
 	lowermap = lowermap >> 4
 
+	header.AltNametables = flagSix&0x08 != 0
 	header.Mapper = uint(lowermap | uppermap)
 
 	flags8 := raw[8]

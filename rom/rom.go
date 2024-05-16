@@ -1,11 +1,12 @@
 package rom
 
 import (
-	"fmt"
 	"bytes"
-
-	"github.com/zorchenhimer/go-nes/rom/ines"
-	"github.com/zorchenhimer/go-nes/rom/unif"
+	"fmt"
+	"io"
+	"os"
+	//"github.com/zorchenhimer/go-nes/rom/ines"
+	//"github.com/zorchenhimer/go-nes/rom/unif"
 )
 
 type Rom interface {
@@ -22,9 +23,19 @@ const (
 	NES2 RomType = "NES 2.0"
 )
 
+func LoadRom(filename string) (Rom, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	return Load(file)
+}
+
 func Load(r io.ReadSeeker) (Rom, error) {
 	magic := make([]byte, 4)
-	err := r.Read(magic)
+	_, err := r.Read(magic)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to read magic value: %w", err)
 	}
