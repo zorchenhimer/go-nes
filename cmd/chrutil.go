@@ -26,7 +26,7 @@ func main() {
 		"Write output as assembly instead of binary CHR data.")
 
 	// Currently only used with the PNG output format
-	cp.AddOption("palette", "p", true, "#003973,#ADB531,#845E21,#C6E79C",
+	cp.AddOption("palette", "p", true, "#000000,#555555,#AAAAAA,#FFFFFF",
 		"Override the default palette with the supplied values.  Expects HTML Hex color codes separated by commas.  The default value being \"#003973,#ADB531,#845E21,#C6E79C\".  Currently only used with PNG output.")
 
 	// Only write the first bit plane of CHR.  Only usable with --asm.
@@ -109,6 +109,14 @@ func main() {
 			os.Exit(1)
 		}
 
+		rmEmpty := cp.GetBoolOption("remove-empty")
+
+		if cp.GetBoolOption("remove-duplicates") {
+			pt.RemoveDuplicates(rmEmpty)
+		} else if rmEmpty {
+			pt.RemoveEmpty()
+		}
+
 		count := cp.GetIntOption("tile-count")
 		offset := cp.GetIntOption("tile-offset")
 		if count != 0 || offset != 0 {
@@ -130,17 +138,9 @@ func main() {
 			pt = npt
 		}
 
-		rmEmpty := cp.GetBoolOption("remove-empty")
-
-		if cp.GetBoolOption("remove-duplicates") {
-			pt.RemoveDuplicates(rmEmpty)
-		} else if rmEmpty {
-			pt.RemoveEmpty()
-		}
-
 		if idfile, err := cp.GetOption("nt-ids"); idfile != "" && err == nil {
 			if !(cp.GetBoolOption("remove-empty") || cp.GetBoolOption("remove-duplicates")) {
-				fmt.Println("--write-ids cannot be used without the --remove-empty or --remove-duplicates option.  Ignoring.")
+				fmt.Println("--nt-ids cannot be used without the --remove-empty or --remove-duplicates option.  Ignoring.")
 				goto SKIP_NT_IDS // i still feel dirty
 			}
 			if len(pt.Patterns) > 512 {
