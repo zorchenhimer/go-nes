@@ -115,7 +115,7 @@ func LoadBitmap(filename string) (*PatternTable, error) {
 
 			if v != pal && !warnPrinted {
 				//return nil, fmt.Errorf("Tile contains more than one palette (%d)", tileID)
-				fmt.Printf("[WARNING] Tile contains more than one palette (%d)\n", tileID)
+				//fmt.Printf("[WARNING] Tile contains more than one palette (%d)\n", tileID)
 				warnPrinted = true
 			}
 
