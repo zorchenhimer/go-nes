@@ -2,6 +2,7 @@ package image
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -43,10 +44,10 @@ func (t Tile) ToChr() []byte {
 	return append(planeA, planeB...)
 }
 
-func LoadCHR(filename string) (*PatternTable, error) {
-	raw, err := os.ReadFile(filename)
+func ReadCHR(reader io.Reader) (*PatternTable, error) {
+	raw, err := io.ReadAll(reader)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to open CHR file for reading: %v", err)
+		return nil, fmt.Errorf("Unable to read CHR data: %w", err)
 	}
 
 	// The data length needs to be a power of 16.
@@ -81,6 +82,16 @@ func LoadCHR(filename string) (*PatternTable, error) {
 	}
 
 	return pt, nil
+}
+
+func LoadCHR(filename string) (*PatternTable, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to open CHR file for reading: %v", err)
+	}
+	defer file.Close()
+
+	return ReadCHR(file)
 }
 
 // These are some the functions for implementing the image.Image
