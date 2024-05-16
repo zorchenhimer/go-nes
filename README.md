@@ -212,8 +212,14 @@ length (one byte) followed by that number tile IDs.
 
 Create an image showing the usage of a ROM.
 
-    $ usage input.nes output.png
+    $ usage --chr-size 8 input.nes output.png
 
 The output image is made up of columns of data.  Each column represents 16k and
-is 16 bytes wide.  Each pixel in the image is a single bit in the ROM.  Only
-the PRG data is used to construct the image.
+is 16 bytes wide.  Each pixel in the image is a single bit in the ROM.
+
+CHR data is also written out to a set of images.  By default, the images are
+split into 8k chunks.  Valid sizes are: 8, 4, 2, 1, & 0.  A value of "0" will
+not split the CHR data into chunks and will write a single image.
+
+Currently, the output filenames for the CHR data conforms to "chr_%04d.png".
+This will be configurable, eventually.
